@@ -1,24 +1,35 @@
--- Tabela de Visitantes
-CREATE TABLE visitors (
+-- Script para configurar o banco de dados no Supabase (SQL Editor)
+
+-- 1. Criar a tabela se não existir
+CREATE TABLE IF NOT EXISTS visitors (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
   phone TEXT NOT NULL,
   address TEXT NOT NULL,
+  invited_by TEXT, -- Novo campo: Quem fez o convite
   created_at TIMESTAMPTZ DEFAULT NOW(),
   created_by UUID REFERENCES auth.users(id) NOT NULL
 );
 
--- Ativar RLS (Segurança em nível de linha)
+-- 2. Adicionar a coluna caso a tabela já exista (prevenção de erro 42P07)
+DO $$ 
+BEGIN 
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='invited_by') THEN
+    ALTER TABLE visitors ADD COLUMN invited_by TEXT;
+  END IF;
+END $$;
+
+-- 3. Ativar RLS (Segurança em nível de linha)
 ALTER TABLE visitors ENABLE ROW LEVEL SECURITY;
 
--- Política para permitir que qualquer usuário autenticado veja todos os visitantes
-CREATE POLICY "Permitir leitura para usuários autenticados" 
-ON visitors FOR SELECT 
-TO authenticated 
-USING (true);
-
--- Política para permitir que usuários autenticados criem novos registros
-CREATE POLICY "Permitir inserção para usuários autenticados" 
-ON visitors FOR INSERT 
-TO authenticated 
-WITH CHECK (auth.uid() = created_by);
+-- 4. Políticas de Segurança (Cria apenas se não existirem)
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Permitir leitura para usuários autenticados') THEN
+        CREATE POLICY "Permitir leitura para usuários autenticados" ON visitors FOR SELECT TO authenticated USING (true);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Permitir inserção para usuários autenticados') THEN
+        CREATE POLICY "Permitir inserção para usuários autenticados" ON visitors FOR INSERT TO authenticated WITH CHECK (auth.uid() = created_by);
+    END IF;
+END $$;

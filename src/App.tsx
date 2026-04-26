@@ -40,13 +40,14 @@ const PDFReportGenerator = (visitors: Visitor[]) => {
     i + 1,
     v.name,
     v.phone,
+    v.invitedBy || '-',
     v.address,
     v.createdAt ? new Date(v.createdAt.seconds * 1000).toLocaleDateString('pt-BR') : '-'
   ]);
   
   doc.autoTable({
     startY: 35,
-    head: [['#', 'Nome', 'Telefone', 'Endereço', 'Data']],
+    head: [['#', 'Nome', 'Telefone', 'Convidado por', 'Endereço', 'Data']],
     body: tableData,
     theme: 'striped',
     headStyles: { fillColor: [30, 58, 138] }
@@ -72,7 +73,7 @@ export default function App() {
   const [displayName, setDisplayName] = useState('');
 
   // Visitor form states
-  const [formData, setFormData] = useState({ name: '', phone: '', address: '' });
+  const [formData, setFormData] = useState({ name: '', phone: '', address: '', invitedBy: '' });
 
   useEffect(() => {
     // Check active sessions and sets up the observer
@@ -155,9 +156,9 @@ export default function App() {
     setMessage(null);
 
     try {
-      await visitorService.addVisitor(formData);
+      const { data } = await visitorService.addVisitor(formData);
       setMessage({ type: 'success', text: 'Visitante cadastrado com sucesso!' });
-      setFormData({ name: '', phone: '', address: '' });
+      setFormData({ name: '', phone: '', address: '', invitedBy: '' });
       fetchVisitors();
     } catch (error) {
       setMessage({ type: 'error', text: 'Erro ao cadastrar visitante.' });
@@ -405,6 +406,22 @@ export default function App() {
                           </div>
                         </div>
                         <div className="space-y-2">
+                          <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Quem Convidou?</label>
+                          <div className="relative">
+                            <UserPlus className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-5 h-5" />
+                            <input 
+                              type="text" 
+                              value={formData.invitedBy}
+                              onChange={(e) => setFormData({...formData, invitedBy: e.target.value})}
+                              placeholder="Nome da pessoa"
+                              className="input-field pl-12 h-14"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
                           <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Data Efetiva</label>
                           <input 
                             disabled
@@ -505,6 +522,14 @@ export default function App() {
                               </div>
                               <span className="text-sm font-bold">{v.phone}</span>
                             </div>
+                            {v.invitedBy && (
+                              <div className="flex items-center gap-3 text-slate-600">
+                                <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                                  <UserPlus className="w-4 h-4" />
+                                </div>
+                                <span className="text-xs font-bold text-slate-500 italic">Convidado por {v.invitedBy}</span>
+                              </div>
+                            )}
                             <div className="flex items-start gap-3 text-slate-400">
                               <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 shrink-0">
                                 <MapPin className="w-4 h-4" />

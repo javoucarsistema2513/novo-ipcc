@@ -20,7 +20,10 @@ export const visitorService = {
         .from('visitors')
         .insert([
           {
-            ...visitorData,
+            name: visitorData.name,
+            phone: visitorData.phone,
+            address: visitorData.address,
+            invited_by: visitorData.invitedBy,
             created_by: user.id,
           }
         ])
@@ -28,7 +31,15 @@ export const visitorService = {
         .single();
       
       if (error) throw error;
-      return data;
+      return {
+        id: data.id,
+        name: data.name,
+        phone: data.phone,
+        address: data.address,
+        invitedBy: data.invited_by,
+        createdAt: { seconds: new Date(data.created_at).getTime() / 1000 },
+        createdBy: data.created_by
+      } as Visitor;
     } catch (error) {
       console.error('Supabase Insert Error:', error);
       throw error;
@@ -50,6 +61,7 @@ export const visitorService = {
         name: v.name,
         phone: v.phone,
         address: v.address,
+        invitedBy: v.invited_by,
         createdAt: { seconds: new Date(v.created_at).getTime() / 1000 },
         createdBy: v.created_by
       })) as Visitor[];
