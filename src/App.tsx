@@ -284,7 +284,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex flex-col sm:flex-row h-screen h-[100dvh] overflow-hidden bg-slate-50 font-sans">
+    <div className="flex flex-col sm:flex-row h-screen h-[100dvh] overflow-hidden bg-white sm:bg-slate-50 font-sans">
       {/* Sidebar - Desktop */}
       <aside className="hidden sm:flex flex-col w-20 lg:w-64 bg-white border-r border-slate-200 shrink-0 z-30">
         <div className="h-16 flex items-center px-6 gap-3 border-b border-slate-50">
@@ -329,23 +329,23 @@ export default function App() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full overflow-hidden relative">
         {/* Header - Mobile */}
-        <header className="sm:hidden flex bg-white/80 backdrop-blur-md border-b border-slate-100 h-14 shrink-0 z-20 px-4 items-center justify-between">
+        <header className="sm:hidden flex bg-white/90 backdrop-blur-lg border-b border-slate-100 h-14 shrink-0 z-20 px-4 items-center justify-between sticky top-0">
           <div className="flex items-center gap-2">
             <div className="bg-blue-600 p-1.5 rounded-lg text-white">
               <Church className="w-5 h-5" />
             </div>
-            <h1 className="font-black text-lg text-slate-900">Visitantes</h1>
+            <h1 className="font-black text-base text-slate-900 tracking-tight">Visitantes</h1>
           </div>
           <button 
             onClick={handleLogout}
-            className="p-2 text-slate-400"
+            className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl"
           >
             <LogOut className="w-5 h-5" />
           </button>
         </header>
 
         {/* Content Scroll Area */}
-        <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-10 sm:py-12 pb-24 sm:pb-12">
+        <main className="flex-1 overflow-y-auto px-4 py-4 sm:px-10 sm:py-12 pb-24 sm:pb-12">
           <div className="max-w-4xl mx-auto">
             <AnimatePresence mode="wait">
               {view === 'register' ? (
@@ -356,12 +356,12 @@ export default function App() {
                   exit={{ opacity: 0, scale: 0.95 }}
                   className="space-y-8"
                 >
-                  <div className="mb-2">
-                    <h2 className="text-3xl font-black text-slate-900 mb-2">Cadastrar Visitante</h2>
-                    <p className="text-slate-500 font-medium tracking-tight">Registre as informações para o banco de dados da igreja.</p>
+                  <div className="mb-2 px-1">
+                    <h2 className="text-2xl font-black text-slate-900 mb-1">Cadastrar Visitante</h2>
+                    <p className="text-slate-500 text-xs font-medium tracking-tight">Registre as informações para o banco de dados.</p>
                   </div>
 
-                  <div className="card-native transform transition-all duration-500 hover:shadow-2xl hover:shadow-blue-900/5">
+                  <div className="card-native p-5 sm:p-10 transform transition-all duration-500 hover:shadow-2xl hover:shadow-blue-900/5">
                     {message && (
                       <motion.div 
                         initial={{ opacity: 0, height: 0 }}
@@ -471,18 +471,18 @@ export default function App() {
                   exit={{ opacity: 0, scale: 0.95 }}
                   className="space-y-8"
                 >
-                  <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
                     <div>
-                      <h2 className="text-3xl font-black text-slate-900 mb-2">Histórico de Visitas</h2>
-                      <p className="text-slate-500 font-medium tracking-tight">Total de {visitors.length} visitantes registrados.</p>
+                      <h2 className="text-2xl font-black text-slate-900 mb-1">Histórico</h2>
+                      <p className="text-slate-500 text-sm font-medium tracking-tight">Total de {visitors.length} registros.</p>
                     </div>
                     <button 
                       onClick={() => PDFReportGenerator(visitors)}
                       disabled={visitors.length === 0}
-                      className="flex items-center justify-center gap-2 bg-blue-50 text-blue-700 h-14 px-8 rounded-2xl font-black hover:bg-blue-100 transition-all active:scale-95 disabled:opacity-40 shadow-sm"
+                      className="flex items-center justify-center gap-2 bg-blue-50 text-blue-700 h-10 px-6 rounded-xl font-black hover:bg-blue-100 transition-all active:scale-95 disabled:opacity-40 shadow-sm text-xs"
                     >
-                      <Download className="w-5 h-5" />
-                      Exportar em PDF
+                      <Download className="w-4 h-4" />
+                      PDF relatório
                     </button>
                   </div>
 
@@ -555,22 +555,21 @@ export default function App() {
         </main>
 
         {/* Mobile Navbar */}
-        <nav className="sm:hidden bottom-nav fixed bottom-0 left-0 right-0 z-50">
+        <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-lg border-t border-slate-100 h-16 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]">
           <button 
             onClick={() => setView('register')}
-            className={`flex flex-col items-center gap-1 transition-all ${view === 'register' ? 'text-blue-600' : 'text-slate-300'}`}
+            className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${view === 'register' ? 'text-blue-600' : 'text-slate-400'}`}
           >
-            <div className={`p-2 rounded-2xl transition-all ${view === 'register' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-transparent'}`}>
-              <UserPlus className="w-6 h-6" />
-            </div>
+            <UserPlus className={`w-6 h-6 ${view === 'register' ? 'scale-110 drop-shadow-sm' : 'scale-100'}`} />
+            <span className="text-[9px] font-black uppercase tracking-tighter">Novo</span>
           </button>
+          
           <button 
             onClick={() => setView('list')}
-            className={`flex flex-col items-center gap-1 transition-all ${view === 'list' ? 'text-blue-600' : 'text-slate-300'}`}
+            className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${view === 'list' ? 'text-blue-600' : 'text-slate-400'}`}
           >
-            <div className={`p-2 rounded-2xl transition-all ${view === 'list' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-transparent'}`}>
-              <FileText className="w-6 h-6" />
-            </div>
+            <FileText className={`w-6 h-6 ${view === 'list' ? 'scale-110 drop-shadow-sm' : 'scale-100'}`} />
+            <span className="text-[9px] font-black uppercase tracking-tighter">Relatórios</span>
           </button>
         </nav>
       </div>
