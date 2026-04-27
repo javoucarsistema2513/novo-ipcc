@@ -284,7 +284,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex flex-col sm:flex-row h-screen overflow-hidden bg-slate-50 font-sans">
+    <div className="flex flex-col sm:flex-row h-screen h-[100dvh] overflow-hidden bg-slate-50 font-sans">
       {/* Sidebar - Desktop */}
       <aside className="hidden sm:flex flex-col w-20 lg:w-64 bg-white border-r border-slate-200 shrink-0 z-30">
         <div className="h-16 flex items-center px-6 gap-3 border-b border-slate-50">
@@ -294,7 +294,7 @@ export default function App() {
           <h1 className="font-black text-lg text-slate-800 hidden lg:block truncate">Sistema</h1>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2">
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           <button 
             onClick={() => setView('register')}
             className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all ${view === 'register' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
@@ -311,7 +311,7 @@ export default function App() {
           </button>
         </nav>
 
-        <div className="p-4 border-t border-slate-50">
+        <div className="p-4 border-t border-slate-50 shrink-0">
           <div className="bg-slate-50 p-3 rounded-2xl mb-3 hidden lg:block">
             <p className="text-[10px] font-black uppercase text-slate-400 mb-1 tracking-widest">Usuário Logado</p>
             <p className="text-xs font-bold text-slate-700 truncate">{user.user_metadata?.display_name || user.email || 'Usuário'}</p>
@@ -329,7 +329,7 @@ export default function App() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full overflow-hidden relative">
         {/* Header - Mobile */}
-        <header className="sm:hidden flex bg-white/80 backdrop-blur-md border-b border-slate-100 h-16 shrink-0 z-20 px-6 items-center justify-between">
+        <header className="sm:hidden flex bg-white/80 backdrop-blur-md border-b border-slate-100 h-14 shrink-0 z-20 px-4 items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="bg-blue-600 p-1.5 rounded-lg text-white">
               <Church className="w-5 h-5" />
@@ -345,7 +345,7 @@ export default function App() {
         </header>
 
         {/* Content Scroll Area */}
-        <main className="flex-1 overflow-y-auto px-4 py-8 sm:px-10 sm:py-12 pb-32 sm:pb-12">
+        <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-10 sm:py-12 pb-24 sm:pb-12">
           <div className="max-w-4xl mx-auto">
             <AnimatePresence mode="wait">
               {view === 'register' ? (
