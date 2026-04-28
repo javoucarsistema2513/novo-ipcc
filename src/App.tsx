@@ -15,7 +15,8 @@ import {
   CheckCircle2,
   ShieldCheck,
   Calendar,
-  Baby
+  Baby,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from './lib/supabase';
@@ -163,6 +164,19 @@ export default function App() {
   };
 
   const handleLogout = () => supabase.auth.signOut();
+
+  const handleDeleteVisitor = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja remover este visitante?')) return;
+    
+    try {
+      await visitorService.deleteVisitor(id);
+      setMessage({ type: 'success', text: 'Visitante removido com sucesso!' });
+      fetchVisitors();
+    } catch (error) {
+      console.error(error);
+      setMessage({ type: 'error', text: 'Erro ao remover visitante.' });
+    }
+  };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -565,9 +579,18 @@ export default function App() {
                             <div className="bg-blue-50 p-2 sm:p-3 rounded-2xl text-blue-600">
                               <User className="w-5 h-5 sm:w-6 sm:h-6" />
                             </div>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 bg-slate-50 px-3 py-1.5 rounded-full">
-                              ID: {v.id?.slice(-4)}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 bg-slate-50 px-3 py-1.5 rounded-full">
+                                ID: {v.id?.slice(-4)}
+                              </span>
+                              <button 
+                                onClick={() => v.id && handleDeleteVisitor(v.id)}
+                                className="p-2 text-rose-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                                title="Remover visitante"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
                           
                           <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight mb-2 uppercase">{v.name}</h3>

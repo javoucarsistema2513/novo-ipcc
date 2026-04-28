@@ -47,4 +47,12 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Permitir inserção para usuários autenticados') THEN
         CREATE POLICY "Permitir inserção para usuários autenticados" ON visitors FOR INSERT TO authenticated WITH CHECK (auth.uid() = created_by);
     END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Permitir deleção para quem criou') THEN
+        CREATE POLICY "Permitir deleção para quem criou" ON visitors FOR DELETE TO authenticated USING (auth.uid() = created_by);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Permitir atualização para quem criou') THEN
+        CREATE POLICY "Permitir atualização para quem criou" ON visitors FOR UPDATE TO authenticated USING (auth.uid() = created_by) WITH CHECK (auth.uid() = created_by);
+    END IF;
 END $$;

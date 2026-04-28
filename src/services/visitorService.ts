@@ -78,5 +78,20 @@ export const visitorService = {
       console.error('Supabase Fetch Error:', error);
       throw error;
     }
+  },
+
+  async deleteVisitor(id: string) {
+    try {
+      const { error } = await supabase
+        .from('visitors')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Supabase Delete Error:', error);
+      throw error;
+    }
   }
 };
