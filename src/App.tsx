@@ -277,8 +277,8 @@ export default function App() {
         {/* Background Image for Login Screen */}
         <div className="absolute inset-0 z-0">
           <img 
-            src="https://images.unsplash.com/photo-1506784365847-bbad939e9335?auto=format&fit=crop&q=80&w=2068" 
-            alt="Agenda aberta com caneta" 
+            src="https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&q=80&w=2070" 
+            alt="Agenda aberta com caneta esferográfica" 
             className="w-full h-full object-cover"
             referrerPolicy="no-referrer"
           />
@@ -461,8 +461,8 @@ export default function App() {
                 {/* Background Image - Full Screen App Look */}
                 <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
                   <img 
-                    src="https://images.unsplash.com/photo-1506784365847-bbad939e9335?auto=format&fit=crop&q=80&w=2068" 
-                    alt="Agenda aberta com caneta" 
+                    src="https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&q=80&w=2070" 
+                    alt="Agenda aberta com caneta esferográfica" 
                     className="w-full h-full object-cover scale-105"
                     referrerPolicy="no-referrer"
                   />
