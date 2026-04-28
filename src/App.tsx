@@ -294,7 +294,7 @@ export default function App() {
             <Church className="text-blue-600 w-5 h-5 sm:w-7 sm:h-7" />
           </div>
           
-          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 text-center mb-1 tracking-tighter">Consolidação IPCC.</h1>
+          <h1 className="text-3xl sm:text-4xl font-black text-gray-900 text-center mb-2 tracking-tighter">Consolidação</h1>
           <p className="text-blue-600 font-bold text-center mb-5 sm:mb-7 text-[10px] sm:text-[12px] uppercase tracking-[0.2em] px-2 py-1 bg-blue-50 rounded-lg">Novo na Igreja</p>
 
           <form onSubmit={handleEmailAuth} className="space-y-3 sm:space-y-4">
@@ -492,8 +492,8 @@ export default function App() {
                     <div className="bg-white/10 backdrop-blur-2xl p-5 rounded-[2.5rem] w-24 h-24 flex items-center justify-center mx-auto mb-8 border border-white/20 shadow-2xl">
                       <Church className="w-12 h-12 text-white" />
                     </div>
-                    <h2 className="text-5xl sm:text-7xl font-black text-white mb-3 tracking-tighter uppercase leading-none drop-shadow-xl">
-                      Consolidação IPCC.
+                    <h2 className="text-5xl sm:text-7xl font-black text-white mb-3 tracking-tighter uppercase leading-none drop-shadow-xl text-center">
+                      Consolidação
                     </h2>
                     <div className="inline-block px-4 py-2 bg-blue-500/20 backdrop-blur-md rounded-full border border-blue-400/30">
                       <p className="text-xs sm:text-sm font-black text-blue-100 tracking-[0.4em] uppercase">
