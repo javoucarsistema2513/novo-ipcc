@@ -27,6 +27,9 @@ export const visitorService = {
             gender: visitorData.gender,
             birth_date: visitorData.birthDate,
             invited_by: visitorData.invitedBy,
+            participates_in_cell: visitorData.participatesInCell,
+            is_married_or_lives_together: visitorData.isMarriedOrLivesTogether,
+            prayer_request: visitorData.prayerRequest,
             created_by: user.id,
           }
         ])
@@ -43,6 +46,9 @@ export const visitorService = {
         gender: data.gender,
         birthDate: data.birth_date,
         invitedBy: data.invited_by,
+        participatesInCell: data.participates_in_cell,
+        isMarriedOrLivesTogether: data.is_married_or_lives_together,
+        prayerRequest: data.prayer_request,
         createdAt: { seconds: new Date(data.created_at).getTime() / 1000 },
         createdBy: data.created_by
       } as Visitor;
@@ -71,6 +77,9 @@ export const visitorService = {
         gender: v.gender,
         birthDate: v.birth_date,
         invitedBy: v.invited_by,
+        participatesInCell: v.participates_in_cell,
+        isMarriedOrLivesTogether: v.is_married_or_lives_together,
+        prayerRequest: v.prayer_request,
         createdAt: { seconds: new Date(v.created_at).getTime() / 1000 },
         createdBy: v.created_by
       })) as Visitor[];
@@ -110,6 +119,9 @@ export const visitorService = {
           gender: visitorData.gender,
           birth_date: visitorData.birthDate,
           invited_by: visitorData.invitedBy,
+          participates_in_cell: visitorData.participatesInCell,
+          is_married_or_lives_together: visitorData.isMarriedOrLivesTogether,
+          prayer_request: visitorData.prayerRequest,
         })
         .eq('id', id)
         .select()
@@ -126,6 +138,9 @@ export const visitorService = {
           gender: data.gender,
           birthDate: data.birth_date,
           invitedBy: data.invited_by,
+          participatesInCell: data.participates_in_cell,
+          isMarriedOrLivesTogether: data.is_married_or_lives_together,
+          prayerRequest: data.prayer_request,
           createdAt: { seconds: new Date(data.created_at).getTime() / 1000 },
           createdBy: data.created_by
         } as Visitor

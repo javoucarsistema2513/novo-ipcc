@@ -10,6 +10,9 @@ CREATE TABLE IF NOT EXISTS visitors (
   gender TEXT,
   birth_date DATE,
   invited_by TEXT, -- Novo campo: Quem fez o convite
+  participates_in_cell TEXT,
+  is_married_or_lives_together TEXT,
+  prayer_request TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   created_by UUID REFERENCES auth.users(id) NOT NULL
 );
@@ -31,6 +34,18 @@ BEGIN
 
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='birth_date') THEN
     ALTER TABLE visitors ADD COLUMN birth_date DATE;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='participates_in_cell') THEN
+    ALTER TABLE visitors ADD COLUMN participates_in_cell TEXT;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='is_married_or_lives_together') THEN
+    ALTER TABLE visitors ADD COLUMN is_married_or_lives_together TEXT;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='prayer_request') THEN
+    ALTER TABLE visitors ADD COLUMN prayer_request TEXT;
   END IF;
 END $$;
 

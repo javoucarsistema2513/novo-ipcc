@@ -7,6 +7,9 @@ export interface Visitor {
   gender?: string;
   birthDate?: string;
   invitedBy?: string;
+  participatesInCell?: string;
+  isMarriedOrLivesTogether?: string;
+  prayerRequest?: string;
   createdAt: any; // ServerTimestamp
   createdBy: string;
 }

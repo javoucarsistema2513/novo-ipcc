@@ -49,13 +49,16 @@ const PDFReportGenerator = (visitors: Visitor[]) => {
     v.gender || '-',
     v.birthDate ? new Date(v.birthDate).toLocaleDateString('pt-BR') : '-',
     v.invitedBy || '-',
+    v.participatesInCell === 'sim' ? 'Sim' : v.participatesInCell === 'nao' ? 'Não' : '-',
+    v.isMarriedOrLivesTogether === 'sim' ? 'Sim' : v.isMarriedOrLivesTogether === 'nao' ? 'Não' : '-',
+    v.prayerRequest || '-',
     v.address,
     v.createdAt ? new Date(v.createdAt.seconds * 1000).toLocaleDateString('pt-BR') : '-'
   ]);
   
   doc.autoTable({
     startY: 35,
-    head: [['#', 'Nome', 'Telefone', 'Idade', 'Sexo', 'Nasc.', 'Convidado por', 'Endereço', 'Data']],
+    head: [['#', 'Nome', 'Telefone', 'Idade', 'Sexo', 'Nasc.', 'Convidado por', 'Célula', 'Mora Junto', 'Pedido', 'Endereço', 'Data']],
     body: tableData,
     theme: 'striped',
     headStyles: { fillColor: [30, 58, 138] },
@@ -65,10 +68,42 @@ const PDFReportGenerator = (visitors: Visitor[]) => {
   doc.save('relatorio-visitantes.pdf');
 };
 
+const CSVReportGenerator = (visitors: Visitor[]) => {
+  const headers = ['Nome', 'Telefone', 'Idade', 'Sexo', 'Data de Nascimento', 'Convidado por', 'Participa de Célula', 'Mora Junto/Casado', 'Pedido de Oração', 'Endereço', 'Data de Cadastro'];
+  const rows = visitors.map(v => [
+    v.name,
+    v.phone,
+    v.age || '',
+    v.gender || '',
+    v.birthDate || '',
+    v.invitedBy || '',
+    v.participatesInCell || '',
+    v.isMarriedOrLivesTogether || '',
+    v.prayerRequest ? v.prayerRequest.replace(/,/g, ';').replace(/\n/g, ' ') : '',
+    v.address.replace(/,/g, ';'), // Prevent CSV breaking on commas in address
+    v.createdAt ? new Date(v.createdAt.seconds * 1000).toLocaleDateString('pt-BR') : ''
+  ]);
+
+  const csvContent = [
+    headers.join(','),
+    ...rows.map(row => row.join(','))
+  ].join('\n');
+
+  const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', 'relatorio-visitantes.csv');
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'register' | 'list'>('register');
+  const [view, setView] = useState<'home' | 'register' | 'list'>('home');
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -90,7 +125,10 @@ export default function App() {
     invitedBy: '',
     age: '',
     gender: '',
-    birthDate: ''
+    birthDate: '',
+    participatesInCell: '',
+    isMarriedOrLivesTogether: '',
+    prayerRequest: ''
   });
 
   useEffect(() => {
@@ -101,6 +139,7 @@ export default function App() {
       if (session?.user) {
         visitorService.testConnection();
         fetchVisitors();
+        setView('home');
       }
     });
 
@@ -109,6 +148,7 @@ export default function App() {
       if (session?.user) {
         visitorService.testConnection();
         fetchVisitors();
+        setView('home');
       }
     });
 
@@ -119,16 +159,6 @@ export default function App() {
     try {
       const data = await visitorService.getVisitors();
       if (data) setVisitors(data);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const handleGoogleLogin = async () => {
-    try {
-      await supabase.auth.signInWithOAuth({
-        provider: 'google',
-      });
     } catch (error) {
       console.error(error);
     }
@@ -190,7 +220,10 @@ export default function App() {
       invitedBy: visitor.invitedBy || '',
       age: visitor.age?.toString() || '',
       gender: visitor.gender || '',
-      birthDate: visitor.birthDate || ''
+      birthDate: visitor.birthDate || '',
+      participatesInCell: visitor.participatesInCell || '',
+      isMarriedOrLivesTogether: visitor.isMarriedOrLivesTogether || '',
+      prayerRequest: visitor.prayerRequest || ''
     });
     setView('register');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -198,7 +231,7 @@ export default function App() {
 
   const handleCancelEdit = () => {
     setEditingId(null);
-    setFormData({ name: '', phone: '', address: '', invitedBy: '', age: '', gender: '', birthDate: '' });
+    setFormData({ name: '', phone: '', address: '', invitedBy: '', age: '', gender: '', birthDate: '', participatesInCell: '', isMarriedOrLivesTogether: '', prayerRequest: '' });
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
@@ -220,7 +253,7 @@ export default function App() {
         setMessage({ type: 'success', text: 'Visitante cadastrado com sucesso!' });
       }
 
-      setFormData({ name: '', phone: '', address: '', invitedBy: '', age: '', gender: '', birthDate: '' });
+      setFormData({ name: '', phone: '', address: '', invitedBy: '', age: '', gender: '', birthDate: '', participatesInCell: '', isMarriedOrLivesTogether: '', prayerRequest: '' });
       setEditingId(null);
       fetchVisitors();
     } catch (error) {
@@ -240,18 +273,29 @@ export default function App() {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 to-indigo-900 p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+        {/* Background Image for Login Screen */}
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&q=80&w=2068" 
+            alt="Agenda aberta com caneta" 
+            className="w-full h-full object-cover"
+            referrerPolicy="no-referrer"
+          />
+          <div className="absolute inset-0 bg-blue-950/60 backdrop-blur-[2px]" />
+        </div>
+
         <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl shadow-2xl p-5 sm:p-8 max-w-sm sm:max-w-md w-full mx-auto"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="relative z-10 bg-white/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl p-6 sm:p-8 max-w-[340px] sm:max-w-[380px] w-full mx-auto border border-white/50"
         >
-          <div className="bg-blue-100 w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
-            <Church className="text-blue-600 w-6 h-6 sm:w-8 sm:h-8" />
+          <div className="bg-blue-100 w-10 h-10 sm:w-14 sm:h-14 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-5">
+            <Church className="text-blue-600 w-5 h-5 sm:w-7 sm:h-7" />
           </div>
           
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 text-center mb-1">Portal do Visitante</h1>
-          <p className="text-gray-500 text-center mb-6 sm:mb-8 text-[11px] sm:text-sm">Entre com suas credenciais para acessar o sistema.</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 text-center mb-1 tracking-tighter">Consolidação IPCC.</h1>
+          <p className="text-blue-600 font-bold text-center mb-5 sm:mb-7 text-[10px] sm:text-[12px] uppercase tracking-[0.2em] px-2 py-1 bg-blue-50 rounded-lg">Novo na Igreja</p>
 
           <form onSubmit={handleEmailAuth} className="space-y-3 sm:space-y-4">
             {authError && (
@@ -309,28 +353,15 @@ export default function App() {
 
             <button 
               disabled={authLoading}
-              className="w-full btn-primary py-3 flex items-center justify-center gap-2 rounded-xl font-bold shadow-lg shadow-blue-200"
+              className="w-full btn-primary h-10 sm:h-11"
             >
-              {authLoading ? <Loader2 className="animate-spin w-5 h-5" /> : (authMode === 'login' ? 'Entrar Agora' : 'Criar Conta')}
+              {authLoading ? <Loader2 className="animate-spin w-4 h-4" /> : (authMode === 'login' ? 'Entrar' : 'Criar Conta')}
             </button>
           </form>
 
-          <div className="mt-6 flex items-center gap-3 text-xs text-gray-400 uppercase font-bold px-2">
-            <hr className="flex-1 border-gray-100" />
-            <span>ou continue com</span>
-            <hr className="flex-1 border-gray-100" />
-          </div>
 
-          <button 
-            onClick={handleGoogleLogin}
-            className="w-full mt-6 flex items-center justify-center gap-3 bg-white border border-gray-200 px-6 py-2.5 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-all shadow-sm"
-          >
-            <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="Google" />
-            Google Workspace
-          </button>
-
-          <p className="mt-8 text-center text-sm text-gray-500">
-            {authMode === 'login' ? 'Não tem uma conta?' : 'Já possui uma conta?'}
+          <p className="mt-6 text-center text-[12px] sm:text-sm text-gray-500">
+            {authMode === 'login' ? 'Não tem conta?' : 'Já possui conta?'}
             <button 
               onClick={() => {
                 setAuthMode(authMode === 'login' ? 'signup' : 'login');
@@ -338,7 +369,7 @@ export default function App() {
               }}
               className="ml-1 text-blue-600 font-bold hover:underline"
             >
-              {authMode === 'login' ? 'Cadastre-se' : 'Faça Login'}
+              {authMode === 'login' ? 'Cadastre-se' : 'Entrar'}
             </button>
           </p>
         </motion.div>
@@ -358,6 +389,13 @@ export default function App() {
         </div>
 
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          <button 
+            onClick={() => setView('home')}
+            className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all ${view === 'home' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
+          >
+            <ShieldCheck className="w-6 h-6 shrink-0" />
+            <span className="font-bold text-sm hidden lg:block">Início</span>
+          </button>
           <button 
             onClick={() => setView('register')}
             className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all ${view === 'register' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
@@ -392,28 +430,97 @@ export default function App() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full overflow-hidden relative">
         {/* Header - Mobile */}
-        <header className="sm:hidden flex bg-white/90 backdrop-blur-lg border-b border-slate-100 h-14 shrink-0 z-20 px-4 items-center justify-between sticky top-0">
-          <div className="flex items-center gap-2">
-            <div className="bg-blue-600 p-1.5 rounded-lg text-white">
-              <Church className="w-5 h-5" />
+        {view !== 'home' && (
+          <header className="sm:hidden flex bg-white/90 backdrop-blur-lg border-b border-slate-100 h-14 shrink-0 z-20 px-4 items-center justify-between sticky top-0">
+            <div className="flex items-center gap-2">
+              <div className="bg-blue-600 p-1.5 rounded-lg text-white">
+                <Church className="w-5 h-5" />
+              </div>
+              <h1 className="font-black text-base text-slate-900 tracking-tight">IPCC.</h1>
             </div>
-            <h1 className="font-black text-base text-slate-900 tracking-tight">Visitantes</h1>
-          </div>
-          <button 
-            onClick={handleLogout}
-            className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl"
-          >
-            <LogOut className="w-5 h-5" />
-          </button>
-        </header>
+            <button 
+              onClick={handleLogout}
+              className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+          </header>
+        )}
 
         {/* Content Scroll Area */}
-        <main className="flex-1 overflow-y-auto px-4 py-4 sm:px-10 sm:py-12 pb-20 sm:pb-12">
-          <div className="max-w-4xl mx-auto">
-            <AnimatePresence mode="wait">
-              {view === 'register' ? (
-                <motion.div 
-                  key="register"
+        <main className="flex-1 overflow-y-auto px-0 py-0 relative h-full">
+          <AnimatePresence mode="wait">
+            {view === 'home' ? (
+              <motion.div 
+                key="home"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="relative min-h-full w-full flex flex-col items-center justify-between text-center"
+              >
+                {/* Background Image - Full Screen App Look */}
+                <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+                  <img 
+                    src="https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&q=80&w=2068" 
+                    alt="Agenda aberta com caneta" 
+                    className="w-full h-full object-cover scale-105"
+                    referrerPolicy="no-referrer"
+                  />
+                  {/* Reduced overlay for maximum image impact */}
+                  <div className="absolute inset-0 bg-blue-950/30" />
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-950/20 to-blue-950/80" />
+                </div>
+
+                {/* Top Actions (Minimalist) */}
+                <div className="relative z-10 w-full p-6 flex justify-end">
+                  <button 
+                    onClick={handleLogout}
+                    className="p-3 bg-white/10 backdrop-blur-md rounded-full text-white/80 hover:bg-white/20 active:scale-95 transition-all border border-white/10"
+                  >
+                    <LogOut className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Centered Content */}
+                <div className="relative z-10 w-full max-w-sm px-8 pb-12 sm:pb-20">
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.2, type: "spring" }}
+                    className="mb-12"
+                  >
+                    <div className="bg-white/10 backdrop-blur-2xl p-5 rounded-[2.5rem] w-24 h-24 flex items-center justify-center mx-auto mb-8 border border-white/20 shadow-2xl">
+                      <Church className="w-12 h-12 text-white" />
+                    </div>
+                    <h2 className="text-5xl sm:text-7xl font-black text-white mb-3 tracking-tighter uppercase leading-none drop-shadow-xl">
+                      Consolidação IPCC.
+                    </h2>
+                    <div className="inline-block px-4 py-2 bg-blue-500/20 backdrop-blur-md rounded-full border border-blue-400/30">
+                      <p className="text-xs sm:text-sm font-black text-blue-100 tracking-[0.4em] uppercase">
+                        Novo na Igreja
+                      </p>
+                    </div>
+                  </motion.div>
+
+                  <motion.button
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    onClick={() => setView('register')}
+                    className="w-full bg-white text-blue-950 h-16 rounded-[2rem] font-black text-xl uppercase tracking-[0.2em] shadow-[0_20px_50px_rgba(0,0,0,0.4)] hover:bg-blue-50 active:scale-95 transition-all flex items-center justify-center gap-3 group"
+                  >
+                    Iniciar
+                    <div className="bg-blue-950/10 p-2 rounded-full group-hover:translate-x-1 transition-transform">
+                      <UserPlus className="w-6 h-6" />
+                    </div>
+                  </motion.button>
+                </div>
+              </motion.div>
+            ) : (
+              <div className="px-4 py-4 sm:px-10 sm:py-12 pb-20 sm:pb-12 max-w-4xl mx-auto w-full">
+                {view === 'register' ? (
+                  <motion.div 
+                    key="register"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
@@ -421,10 +528,10 @@ export default function App() {
                 >
                   <div className="mb-2 px-1 flex items-center justify-between">
                     <div>
-                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 mb-1">
+                      <h2 className="text-3xl sm:text-4xl font-black text-slate-900 mb-1 tracking-tighter">
                         {editingId ? 'Editar Visitante' : 'Cadastrar Visitante'}
                       </h2>
-                      <p className="text-slate-500 text-[10px] sm:text-xs font-medium tracking-tight">
+                      <p className="text-slate-500 text-xs sm:text-sm font-medium tracking-tight">
                         {editingId ? 'Corrija as informações necessárias.' : 'Registre as informações para o banco de dados.'}
                       </p>
                     </div>
@@ -540,6 +647,61 @@ export default function App() {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                         <div className="space-y-1 sm:space-y-2">
+                          <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Participa de uma célula?</label>
+                          <div className="flex gap-4 p-1">
+                            <button
+                              type="button"
+                              onClick={() => setFormData({...formData, participatesInCell: 'sim'})}
+                              className={`flex-1 h-12 sm:h-14 rounded-2xl font-bold transition-all border-2 ${formData.participatesInCell === 'sim' ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'}`}
+                            >
+                              Sim
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setFormData({...formData, participatesInCell: 'nao'})}
+                              className={`flex-1 h-12 sm:h-14 rounded-2xl font-bold transition-all border-2 ${formData.participatesInCell === 'nao' ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'}`}
+                            >
+                              Não
+                            </button>
+                          </div>
+                        </div>
+                        <div className="space-y-1 sm:space-y-2">
+                          <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Mora Junto ou é casado?</label>
+                          <div className="flex gap-4 p-1">
+                            <button
+                              type="button"
+                              onClick={() => setFormData({...formData, isMarriedOrLivesTogether: 'sim'})}
+                              className={`flex-1 h-12 sm:h-14 rounded-2xl font-bold transition-all border-2 ${formData.isMarriedOrLivesTogether === 'sim' ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'}`}
+                            >
+                              Sim
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setFormData({...formData, isMarriedOrLivesTogether: 'nao'})}
+                              className={`flex-1 h-12 sm:h-14 rounded-2xl font-bold transition-all border-2 ${formData.isMarriedOrLivesTogether === 'nao' ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'}`}
+                            >
+                              Não
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1 sm:space-y-2">
+                        <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Algum pedido de Oração?</label>
+                        <div className="relative">
+                          <FileText className="absolute left-4 top-4 text-slate-300 w-4 h-4 sm:w-5 sm:h-5" />
+                          <textarea 
+                            rows={3}
+                            value={formData.prayerRequest}
+                            onChange={(e) => setFormData({...formData, prayerRequest: e.target.value})}
+                            placeholder="Escreva aqui o pedido de oração se houver..."
+                            className="input-field pl-10 sm:pl-12 pt-3 sm:pt-4 resize-none text-sm sm:text-base"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                        <div className="space-y-1 sm:space-y-2">
                           <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Data Efetiva</label>
                           <input 
                             disabled
@@ -567,7 +729,7 @@ export default function App() {
 
                       <button 
                         disabled={isSubmitting}
-                        className="w-full btn-primary h-12 sm:h-16 flex items-center justify-center gap-2 sm:gap-3 text-base sm:text-lg"
+                        className="w-full btn-primary h-14 sm:h-16"
                       >
                         {isSubmitting ? (
                           <Loader2 className="animate-spin w-6 h-6" />
@@ -591,17 +753,27 @@ export default function App() {
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
                     <div>
-                      <h2 className="text-2xl font-black text-slate-900 mb-1">Histórico</h2>
+                      <h2 className="text-3xl sm:text-4xl font-black text-slate-900 mb-1 tracking-tighter">Histórico</h2>
                       <p className="text-slate-500 text-sm font-medium tracking-tight">Total de {visitors.length} registros.</p>
                     </div>
-                    <button 
-                      onClick={() => PDFReportGenerator(visitors)}
-                      disabled={visitors.length === 0}
-                      className="flex items-center justify-center gap-2 bg-blue-50 text-blue-700 h-10 px-6 rounded-xl font-black hover:bg-blue-100 transition-all active:scale-95 disabled:opacity-40 shadow-sm text-xs"
-                    >
-                      <Download className="w-4 h-4" />
-                      PDF relatório
-                    </button>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => PDFReportGenerator(visitors)}
+                        disabled={visitors.length === 0}
+                        className="flex items-center justify-center gap-2 bg-blue-50 text-blue-700 h-10 px-4 rounded-xl font-black hover:bg-blue-100 transition-all active:scale-95 disabled:opacity-40 shadow-sm text-xs"
+                      >
+                        <Download className="w-4 h-4" />
+                        PDF
+                      </button>
+                      <button 
+                        onClick={() => CSVReportGenerator(visitors)}
+                        disabled={visitors.length === 0}
+                        className="flex items-center justify-center gap-2 bg-emerald-50 text-emerald-700 h-10 px-4 rounded-xl font-black hover:bg-emerald-100 transition-all active:scale-95 disabled:opacity-40 shadow-sm text-xs"
+                      >
+                        <FileText className="w-4 h-4" />
+                        CSV
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -680,6 +852,31 @@ export default function App() {
                               </div>
                             )}
 
+                            {(v.participatesInCell || v.isMarriedOrLivesTogether) && (
+                              <div className="flex flex-wrap gap-2">
+                                {v.participatesInCell && (
+                                  <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border ${v.participatesInCell === 'sim' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
+                                    <span className="text-[10px] font-black uppercase tracking-tight">Célula: {v.participatesInCell === 'sim' ? 'Sim' : 'Não'}</span>
+                                  </div>
+                                )}
+                                {v.isMarriedOrLivesTogether && (
+                                  <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100 text-slate-600">
+                                    <span className="text-[10px] font-bold uppercase tracking-tight">Família: {v.isMarriedOrLivesTogether === 'sim' ? 'Casado/Mora Junto' : 'Solteiro'}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {v.prayerRequest && (
+                              <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-100/50">
+                                <div className="flex items-center gap-1 mb-1">
+                                  <FileText className="w-3 h-3 text-amber-500" />
+                                  <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Pedido de Oração</span>
+                                </div>
+                                <p className="text-xs text-amber-800 italic leading-relaxed line-clamp-3">{v.prayerRequest}</p>
+                              </div>
+                            )}
+
                             {v.invitedBy && (
                               <div className="flex items-center gap-3 text-slate-600">
                                 <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
@@ -708,12 +905,21 @@ export default function App() {
                   </div>
                 </motion.div>
               )}
-            </AnimatePresence>
-          </div>
-        </main>
+            </div>
+          )}
+        </AnimatePresence>
+      </main>
 
         {/* Mobile Navbar */}
         <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-slate-100 h-14 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]">
+          <button 
+            onClick={() => setView('home')}
+            className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${view === 'home' ? 'text-blue-600' : 'text-slate-400'}`}
+          >
+            <ShieldCheck className={`w-6 h-6 ${view === 'home' ? 'scale-110 drop-shadow-sm' : 'scale-100'}`} />
+            <span className="text-[9px] font-black uppercase tracking-tighter">Início</span>
+          </button>
+          
           <button 
             onClick={() => setView('register')}
             className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${view === 'register' ? 'text-blue-600' : 'text-slate-400'}`}

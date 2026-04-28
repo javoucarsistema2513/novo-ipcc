@@ -13,9 +13,9 @@ export default defineConfig(({mode}) => {
       VitePWA({
         registerType: 'autoUpdate',
         manifest: {
-          name: 'Portal do Visitante',
-          short_name: 'Visitantes',
-          description: 'Sistema de gestão de visitantes para igrejas',
+          name: 'Consolidação IPCC.',
+          short_name: 'IPCC.',
+          description: 'Sistema de Consolidação IPCC. - Novo na Igreja',
           theme_color: '#2563eb',
           background_color: '#ffffff',
           display: 'standalone',
