@@ -58,7 +58,7 @@ const PDFReportGenerator = (visitors: Visitor[]) => {
   
   doc.autoTable({
     startY: 35,
-    head: [['#', 'Nome', 'Telefone', 'Idade', 'Sexo', 'Nasc.', 'Convidado por', 'Célula', 'Mora Junto', 'Pedido', 'Endereço', 'Data']],
+    head: [['#', 'Nome', 'Telefone', 'Idade', 'Sexo', 'Nasc.', 'Convidado por', 'Célula', 'Mora Junto', 'Pedido Oração', 'Endereço', 'Data']],
     body: tableData,
     theme: 'striped',
     headStyles: { fillColor: [30, 58, 138] },
@@ -69,7 +69,7 @@ const PDFReportGenerator = (visitors: Visitor[]) => {
 };
 
 const CSVReportGenerator = (visitors: Visitor[]) => {
-  const headers = ['Nome', 'Telefone', 'Idade', 'Sexo', 'Data de Nascimento', 'Convidado por', 'Participa de Célula', 'Mora Junto/Casado', 'Pedido de Oração', 'Endereço', 'Data de Cadastro'];
+  const headers = ['Nome', 'Telefone', 'Idade', 'Sexo', 'Data de Nascimento', 'Convidado por', 'Participa de Célula', 'Mora Junto/Casado', 'Algum pedido de Oração?', 'Endereço', 'Data de Cadastro'];
   const rows = visitors.map(v => [
     v.name,
     v.phone,
@@ -277,12 +277,12 @@ export default function App() {
         {/* Background Image for Login Screen */}
         <div className="absolute inset-0 z-0">
           <img 
-            src="https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&q=80&w=2068" 
+            src="https://images.unsplash.com/photo-1506784365847-bbad939e9335?auto=format&fit=crop&q=80&w=2068" 
             alt="Agenda aberta com caneta" 
             className="w-full h-full object-cover"
             referrerPolicy="no-referrer"
           />
-          <div className="absolute inset-0 bg-blue-950/60 backdrop-blur-[2px]" />
+          <div className="absolute inset-0 bg-blue-950/50 backdrop-blur-[1px]" />
         </div>
 
         <motion.div 
@@ -461,14 +461,14 @@ export default function App() {
                 {/* Background Image - Full Screen App Look */}
                 <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
                   <img 
-                    src="https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&q=80&w=2068" 
+                    src="https://images.unsplash.com/photo-1506784365847-bbad939e9335?auto=format&fit=crop&q=80&w=2068" 
                     alt="Agenda aberta com caneta" 
                     className="w-full h-full object-cover scale-105"
                     referrerPolicy="no-referrer"
                   />
                   {/* Reduced overlay for maximum image impact */}
-                  <div className="absolute inset-0 bg-blue-950/30" />
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-950/20 to-blue-950/80" />
+                  <div className="absolute inset-0 bg-blue-950/20" />
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-950/10 to-blue-950/70" />
                 </div>
 
                 {/* Top Actions (Minimalist) */}
@@ -633,15 +633,22 @@ export default function App() {
                         </div>
                         <div className="space-y-1 sm:space-y-2 col-span-2 md:col-span-1">
                           <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Sexo</label>
-                          <select 
-                            value={formData.gender}
-                            onChange={(e) => setFormData({...formData, gender: e.target.value})}
-                            className="input-field h-12 sm:h-14 text-sm sm:text-base appearance-none px-4"
-                          >
-                            <option value="">Selecionar</option>
-                            <option value="M">Masculino</option>
-                            <option value="F">Feminino</option>
-                          </select>
+                          <div className="flex gap-4 p-1">
+                            <button
+                              type="button"
+                              onClick={() => setFormData({...formData, gender: 'M'})}
+                              className={`flex-1 h-12 sm:h-14 rounded-2xl font-bold transition-all border-2 ${formData.gender === 'M' ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'}`}
+                            >
+                              Masculino
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setFormData({...formData, gender: 'F'})}
+                              className={`flex-1 h-12 sm:h-14 rounded-2xl font-bold transition-all border-2 ${formData.gender === 'F' ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'}`}
+                            >
+                              Feminino
+                            </button>
+                          </div>
                         </div>
                       </div>
 
@@ -871,7 +878,7 @@ export default function App() {
                               <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-100/50">
                                 <div className="flex items-center gap-1 mb-1">
                                   <FileText className="w-3 h-3 text-amber-500" />
-                                  <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Pedido de Oração</span>
+                                  <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Algum pedido de Oração?</span>
                                 </div>
                                 <p className="text-xs text-amber-800 italic leading-relaxed line-clamp-3">{v.prayerRequest}</p>
                               </div>
