@@ -16,7 +16,9 @@ import {
   ShieldCheck,
   Calendar,
   Baby,
-  Trash2
+  Trash2,
+  Pencil,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from './lib/supabase';
@@ -73,6 +75,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Auth form states
   const [email, setEmail] = useState('');
@@ -178,21 +181,50 @@ export default function App() {
     }
   };
 
+  const handleEditVisitor = (visitor: Visitor) => {
+    setEditingId(visitor.id || null);
+    setFormData({
+      name: visitor.name,
+      phone: visitor.phone,
+      address: visitor.address,
+      invitedBy: visitor.invitedBy || '',
+      age: visitor.age?.toString() || '',
+      gender: visitor.gender || '',
+      birthDate: visitor.birthDate || ''
+    });
+    setView('register');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setFormData({ name: '', phone: '', address: '', invitedBy: '', age: '', gender: '', birthDate: '' });
+  };
+
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setMessage(null);
 
     try {
-      const { data } = await visitorService.addVisitor({
+      const visitorData = {
         ...formData,
         age: formData.age ? parseInt(formData.age) : undefined
-      });
-      setMessage({ type: 'success', text: 'Visitante cadastrado com sucesso!' });
+      };
+
+      if (editingId) {
+        await visitorService.updateVisitor(editingId, visitorData);
+        setMessage({ type: 'success', text: 'Visitante atualizado com sucesso!' });
+      } else {
+        await visitorService.addVisitor(visitorData);
+        setMessage({ type: 'success', text: 'Visitante cadastrado com sucesso!' });
+      }
+
       setFormData({ name: '', phone: '', address: '', invitedBy: '', age: '', gender: '', birthDate: '' });
+      setEditingId(null);
       fetchVisitors();
     } catch (error) {
-      setMessage({ type: 'error', text: 'Erro ao cadastrar visitante.' });
+      setMessage({ type: 'error', text: editingId ? 'Erro ao atualizar visitante.' : 'Erro ao cadastrar visitante.' });
     } finally {
       setIsSubmitting(false);
     }
@@ -387,9 +419,24 @@ export default function App() {
                   exit={{ opacity: 0, scale: 0.95 }}
                   className="space-y-8"
                 >
-                  <div className="mb-2 px-1">
-                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 mb-1">Cadastrar Visitante</h2>
-                    <p className="text-slate-500 text-[10px] sm:text-xs font-medium tracking-tight">Registre as informações para o banco de dados.</p>
+                  <div className="mb-2 px-1 flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 mb-1">
+                        {editingId ? 'Editar Visitante' : 'Cadastrar Visitante'}
+                      </h2>
+                      <p className="text-slate-500 text-[10px] sm:text-xs font-medium tracking-tight">
+                        {editingId ? 'Corrija as informações necessárias.' : 'Registre as informações para o banco de dados.'}
+                      </p>
+                    </div>
+                    {editingId && (
+                      <button 
+                        onClick={handleCancelEdit}
+                        className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 rounded-xl font-bold text-xs hover:bg-slate-200 transition-all"
+                      >
+                        <X className="w-4 h-4" />
+                        Cancelar Edição
+                      </button>
+                    )}
                   </div>
 
                   <div className="card-native p-4 sm:p-10 transform transition-all duration-500 hover:shadow-2xl hover:shadow-blue-900/5">
@@ -526,8 +573,8 @@ export default function App() {
                           <Loader2 className="animate-spin w-6 h-6" />
                         ) : (
                           <>
-                            <UserPlus className="w-6 h-6" />
-                            <span>Confirmar Cadastro</span>
+                            {editingId ? <CheckCircle2 className="w-6 h-6" /> : <UserPlus className="w-6 h-6" />}
+                            <span>{editingId ? 'Salvar Alterações' : 'Confirmar Cadastro'}</span>
                           </>
                         )}
                       </button>
@@ -583,6 +630,13 @@ export default function App() {
                               <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 bg-slate-50 px-3 py-1.5 rounded-full">
                                 ID: {v.id?.slice(-4)}
                               </span>
+                              <button 
+                                onClick={() => handleEditVisitor(v)}
+                                className="p-2 text-blue-300 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
+                                title="Editar visitante"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
                               <button 
                                 onClick={() => v.id && handleDeleteVisitor(v.id)}
                                 className="p-2 text-rose-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"

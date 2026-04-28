@@ -93,5 +93,46 @@ export const visitorService = {
       console.error('Supabase Delete Error:', error);
       throw error;
     }
+  },
+
+  async updateVisitor(id: string, visitorData: Partial<Visitor>) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Não autenticado');
+
+      const { data, error } = await supabase
+        .from('visitors')
+        .update({
+          name: visitorData.name,
+          phone: visitorData.phone,
+          address: visitorData.address,
+          age: visitorData.age,
+          gender: visitorData.gender,
+          birth_date: visitorData.birthDate,
+          invited_by: visitorData.invitedBy,
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return {
+        data: {
+          id: data.id,
+          name: data.name,
+          phone: data.phone,
+          address: data.address,
+          age: data.age,
+          gender: data.gender,
+          birthDate: data.birth_date,
+          invitedBy: data.invited_by,
+          createdAt: { seconds: new Date(data.created_at).getTime() / 1000 },
+          createdBy: data.created_by
+        } as Visitor
+      };
+    } catch (error) {
+      console.error('Supabase Update Error:', error);
+      throw error;
+    }
   }
 };
