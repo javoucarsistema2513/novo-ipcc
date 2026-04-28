@@ -1,6 +1,6 @@
 {
   "name": "Portal do Visitante - Igreja",
-  "description": "Sistema para cadastro de visitantes, gestão de membros e geração de relatórios PDF para igrejas.",
+  "description": "Sistema para cadastro de visitantes, gestão e relatórios PDF.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

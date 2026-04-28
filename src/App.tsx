@@ -181,16 +181,16 @@ export default function App() {
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full"
+          className="bg-white rounded-2xl shadow-2xl p-5 sm:p-8 max-w-sm sm:max-w-md w-full mx-auto"
         >
-          <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Church className="text-blue-600 w-8 h-8" />
+          <div className="bg-blue-100 w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+            <Church className="text-blue-600 w-6 h-6 sm:w-8 sm:h-8" />
           </div>
           
-          <h1 className="text-2xl font-bold text-gray-900 text-center mb-2">Portal do Visitante</h1>
-          <p className="text-gray-500 text-center mb-8 text-sm">Entre com suas credenciais para acessar o sistema.</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 text-center mb-1">Portal do Visitante</h1>
+          <p className="text-gray-500 text-center mb-6 sm:mb-8 text-[11px] sm:text-sm">Entre com suas credenciais para acessar o sistema.</p>
 
-          <form onSubmit={handleEmailAuth} className="space-y-4">
+          <form onSubmit={handleEmailAuth} className="space-y-3 sm:space-y-4">
             {authError && (
               <div className="p-3 rounded-lg bg-red-50 text-red-600 text-sm border border-red-100 italic">
                 {authError}
@@ -345,7 +345,7 @@ export default function App() {
         </header>
 
         {/* Content Scroll Area */}
-        <main className="flex-1 overflow-y-auto px-4 py-4 sm:px-10 sm:py-12 pb-24 sm:pb-12">
+        <main className="flex-1 overflow-y-auto px-4 py-4 sm:px-10 sm:py-12 pb-20 sm:pb-12">
           <div className="max-w-4xl mx-auto">
             <AnimatePresence mode="wait">
               {view === 'register' ? (
@@ -357,11 +357,11 @@ export default function App() {
                   className="space-y-8"
                 >
                   <div className="mb-2 px-1">
-                    <h2 className="text-2xl font-black text-slate-900 mb-1">Cadastrar Visitante</h2>
-                    <p className="text-slate-500 text-xs font-medium tracking-tight">Registre as informações para o banco de dados.</p>
+                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 mb-1">Cadastrar Visitante</h2>
+                    <p className="text-slate-500 text-[10px] sm:text-xs font-medium tracking-tight">Registre as informações para o banco de dados.</p>
                   </div>
 
-                  <div className="card-native p-5 sm:p-10 transform transition-all duration-500 hover:shadow-2xl hover:shadow-blue-900/5">
+                  <div className="card-native p-4 sm:p-10 transform transition-all duration-500 hover:shadow-2xl hover:shadow-blue-900/5">
                     {message && (
                       <motion.div 
                         initial={{ opacity: 0, height: 0 }}
@@ -374,82 +374,82 @@ export default function App() {
                       </motion.div>
                     )}
 
-                    <form onSubmit={handleFormSubmit} className="space-y-6">
-                      <div className="space-y-2">
-                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome do Visitante</label>
+                    <form onSubmit={handleFormSubmit} className="space-y-4 sm:space-y-6">
+                      <div className="space-y-1 sm:space-y-2">
+                        <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome do Visitante</label>
                         <div className="relative">
-                          <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-5 h-5" />
+                          <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4 sm:w-5 sm:h-5" />
                           <input 
                             required
                             type="text" 
                             value={formData.name}
                             onChange={(e) => setFormData({...formData, name: e.target.value})}
                             placeholder="Nome completo do visitante"
-                            className="input-field pl-12 h-14"
+                            className="input-field pl-10 sm:pl-12 h-12 sm:h-14 text-sm sm:text-base"
                           />
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Telefone Principal</label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                        <div className="space-y-1 sm:space-y-2">
+                          <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Telefone Principal</label>
                           <div className="relative">
-                            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-5 h-5" />
+                            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4 sm:w-5 sm:h-5" />
                             <input 
                               required
                               type="tel" 
                               value={formData.phone}
                               onChange={(e) => setFormData({...formData, phone: e.target.value})}
                               placeholder="(00) 00000-0000"
-                              className="input-field pl-12 h-14"
+                              className="input-field pl-10 sm:pl-12 h-12 sm:h-14 text-sm sm:text-base"
                             />
                           </div>
                         </div>
-                        <div className="space-y-2">
-                          <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Quem Convidou?</label>
+                        <div className="space-y-1 sm:space-y-2">
+                          <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Quem Convidou?</label>
                           <div className="relative">
-                            <UserPlus className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-5 h-5" />
+                            <UserPlus className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4 sm:w-5 sm:h-5" />
                             <input 
                               type="text" 
                               value={formData.invitedBy}
                               onChange={(e) => setFormData({...formData, invitedBy: e.target.value})}
                               placeholder="Nome da pessoa"
-                              className="input-field pl-12 h-14"
+                              className="input-field pl-10 sm:pl-12 h-12 sm:h-14 text-sm sm:text-base"
                             />
                           </div>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Data Efetiva</label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                        <div className="space-y-1 sm:space-y-2">
+                          <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Data Efetiva</label>
                           <input 
                             disabled
                             type="text" 
-                            className="input-field bg-slate-50 text-slate-500 font-bold h-14 cursor-not-allowed"
+                            className="input-field bg-slate-50 text-slate-500 font-bold h-12 sm:h-14 cursor-not-allowed text-sm sm:text-base"
                             value={new Date().toLocaleDateString('pt-BR')}
                           />
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Endereço Completo</label>
+                      <div className="space-y-1 sm:space-y-2">
+                        <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Endereço Completo</label>
                         <div className="relative">
-                          <MapPin className="absolute left-4 top-4 text-slate-300 w-5 h-5" />
+                          <MapPin className="absolute left-4 top-4 text-slate-300 w-4 h-4 sm:w-5 sm:h-5" />
                           <textarea 
                             required
-                            rows={3}
+                            rows={2}
                             value={formData.address}
                             onChange={(e) => setFormData({...formData, address: e.target.value})}
                             placeholder="Rua, Número, Bairro e Cidade"
-                            className="input-field pl-12 pt-4 resize-none"
+                            className="input-field pl-10 sm:pl-12 pt-3 sm:pt-4 resize-none text-sm sm:text-base"
                           />
                         </div>
                       </div>
 
                       <button 
                         disabled={isSubmitting}
-                        className="w-full btn-primary h-16 flex items-center justify-center gap-3 text-lg"
+                        className="w-full btn-primary h-12 sm:h-16 flex items-center justify-center gap-2 sm:gap-3 text-base sm:text-lg"
                       >
                         {isSubmitting ? (
                           <Loader2 className="animate-spin w-6 h-6" />
@@ -555,7 +555,7 @@ export default function App() {
         </main>
 
         {/* Mobile Navbar */}
-        <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-lg border-t border-slate-100 h-16 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]">
+        <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-slate-100 h-14 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]">
           <button 
             onClick={() => setView('register')}
             className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${view === 'register' ? 'text-blue-600' : 'text-slate-400'}`}

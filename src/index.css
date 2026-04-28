@@ -31,17 +31,23 @@ body {
   color: #0f172a;
 }
 
+@layer base {
+  input, textarea, button {
+    touch-action: manipulation;
+  }
+}
+
 @layer components {
   .btn-primary {
     @apply bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold transition-all active:scale-95 shadow-lg shadow-blue-200/50 hover:bg-blue-700 disabled:opacity-50 disabled:active:scale-100;
   }
   
   .input-field {
-    @apply w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-400 focus:outline-none transition-all placeholder:text-slate-400 text-slate-900 shadow-sm;
+    @apply w-full px-4 py-2.5 sm:py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-400 focus:outline-none transition-all placeholder:text-slate-400 text-slate-900 shadow-sm;
   }
   
   .card-native {
-    @apply bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-6;
+    @apply bg-white rounded-2xl sm:rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-4 sm:p-6;
   }
 
   /* Mobile bottom bar style */
