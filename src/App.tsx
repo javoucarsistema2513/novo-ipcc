@@ -13,7 +13,9 @@ import {
   Search,
   Loader2,
   CheckCircle2,
-  ShieldCheck
+  ShieldCheck,
+  Calendar,
+  Baby
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from './lib/supabase';
@@ -40,6 +42,9 @@ const PDFReportGenerator = (visitors: Visitor[]) => {
     i + 1,
     v.name,
     v.phone,
+    v.age || '-',
+    v.gender || '-',
+    v.birthDate ? new Date(v.birthDate).toLocaleDateString('pt-BR') : '-',
     v.invitedBy || '-',
     v.address,
     v.createdAt ? new Date(v.createdAt.seconds * 1000).toLocaleDateString('pt-BR') : '-'
@@ -47,10 +52,11 @@ const PDFReportGenerator = (visitors: Visitor[]) => {
   
   doc.autoTable({
     startY: 35,
-    head: [['#', 'Nome', 'Telefone', 'Convidado por', 'Endereço', 'Data']],
+    head: [['#', 'Nome', 'Telefone', 'Idade', 'Sexo', 'Nasc.', 'Convidado por', 'Endereço', 'Data']],
     body: tableData,
     theme: 'striped',
-    headStyles: { fillColor: [30, 58, 138] }
+    headStyles: { fillColor: [30, 58, 138] },
+    styles: { fontSize: 8 }
   });
   
   doc.save('relatorio-visitantes.pdf');
@@ -73,7 +79,15 @@ export default function App() {
   const [displayName, setDisplayName] = useState('');
 
   // Visitor form states
-  const [formData, setFormData] = useState({ name: '', phone: '', address: '', invitedBy: '' });
+  const [formData, setFormData] = useState({ 
+    name: '', 
+    phone: '', 
+    address: '', 
+    invitedBy: '',
+    age: '',
+    gender: '',
+    birthDate: ''
+  });
 
   useEffect(() => {
     // Check active sessions and sets up the observer
@@ -156,9 +170,12 @@ export default function App() {
     setMessage(null);
 
     try {
-      const { data } = await visitorService.addVisitor(formData);
+      const { data } = await visitorService.addVisitor({
+        ...formData,
+        age: formData.age ? parseInt(formData.age) : undefined
+      });
       setMessage({ type: 'success', text: 'Visitante cadastrado com sucesso!' });
-      setFormData({ name: '', phone: '', address: '', invitedBy: '' });
+      setFormData({ name: '', phone: '', address: '', invitedBy: '', age: '', gender: '', birthDate: '' });
       fetchVisitors();
     } catch (error) {
       setMessage({ type: 'error', text: 'Erro ao cadastrar visitante.' });
@@ -420,6 +437,46 @@ export default function App() {
                         </div>
                       </div>
 
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+                        <div className="space-y-1 sm:space-y-2">
+                          <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Data de Nasc.</label>
+                          <div className="relative">
+                            <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4 sm:w-5 sm:h-5" />
+                            <input 
+                              type="date" 
+                              value={formData.birthDate}
+                              onChange={(e) => setFormData({...formData, birthDate: e.target.value})}
+                              className="input-field pl-10 sm:pl-12 h-12 sm:h-14 text-sm sm:text-base"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1 sm:space-y-2">
+                          <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Idade</label>
+                          <div className="relative">
+                            <Baby className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4 sm:w-5 sm:h-5" />
+                            <input 
+                              type="number" 
+                              value={formData.age}
+                              onChange={(e) => setFormData({...formData, age: e.target.value})}
+                              placeholder="00"
+                              className="input-field pl-10 sm:pl-12 h-12 sm:h-14 text-sm sm:text-base"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1 sm:space-y-2 col-span-2 md:col-span-1">
+                          <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Sexo</label>
+                          <select 
+                            value={formData.gender}
+                            onChange={(e) => setFormData({...formData, gender: e.target.value})}
+                            className="input-field h-12 sm:h-14 text-sm sm:text-base appearance-none px-4"
+                          >
+                            <option value="">Selecionar</option>
+                            <option value="M">Masculino</option>
+                            <option value="F">Feminino</option>
+                          </select>
+                        </div>
+                      </div>
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                         <div className="space-y-1 sm:space-y-2">
                           <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Data Efetiva</label>
@@ -502,18 +559,18 @@ export default function App() {
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: i * 0.05 }}
-                          className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all"
+                          className="bg-white p-5 sm:p-6 rounded-[28px] sm:rounded-[32px] border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all"
                         >
                           <div className="flex justify-between items-start mb-4">
-                            <div className="bg-blue-50 p-3 rounded-2xl text-blue-600">
-                              <User className="w-6 h-6" />
+                            <div className="bg-blue-50 p-2 sm:p-3 rounded-2xl text-blue-600">
+                              <User className="w-5 h-5 sm:w-6 sm:h-6" />
                             </div>
                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 bg-slate-50 px-3 py-1.5 rounded-full">
                               ID: {v.id?.slice(-4)}
                             </span>
                           </div>
                           
-                          <h3 className="text-lg font-black text-slate-900 leading-tight mb-2 uppercase">{v.name}</h3>
+                          <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight mb-2 uppercase">{v.name}</h3>
                           
                           <div className="space-y-3">
                             <div className="flex items-center gap-3 text-slate-600">
@@ -522,6 +579,30 @@ export default function App() {
                               </div>
                               <span className="text-sm font-bold">{v.phone}</span>
                             </div>
+                            
+                            {(v.age || v.gender || v.birthDate) && (
+                              <div className="flex flex-wrap gap-2">
+                                {v.age && (
+                                  <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
+                                    <Baby className="w-3 h-3 text-slate-400" />
+                                    <span className="text-[10px] font-bold text-slate-600">{v.age} anos</span>
+                                  </div>
+                                )}
+                                {v.gender && (
+                                  <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
+                                    <User className="w-3 h-3 text-slate-400" />
+                                    <span className="text-[10px] font-bold text-slate-600">{v.gender === 'M' ? 'Masc.' : 'Fem.'}</span>
+                                  </div>
+                                )}
+                                {v.birthDate && (
+                                  <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
+                                    <Calendar className="w-3 h-3 text-slate-400" />
+                                    <span className="text-[10px] font-bold text-slate-600">Nasc. {new Date(v.birthDate).toLocaleDateString('pt-BR')}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
                             {v.invitedBy && (
                               <div className="flex items-center gap-3 text-slate-600">
                                 <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
@@ -534,11 +615,11 @@ export default function App() {
                               <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 shrink-0">
                                 <MapPin className="w-4 h-4" />
                               </div>
-                              <span className="text-xs font-medium leading-relaxed">{v.address}</span>
+                              <span className="text-xs font-medium leading-relaxed line-clamp-2 sm:line-clamp-none">{v.address}</span>
                             </div>
                           </div>
                           
-                          <div className="mt-6 pt-4 border-t border-slate-50 flex justify-between items-center bg-slate-50/50 -mx-6 -mb-6 px-6 py-3 rounded-b-[32px]">
+                          <div className="mt-6 pt-4 border-t border-slate-50 flex justify-between items-center bg-slate-50/50 -mx-5 sm:-mx-6 -mb-5 sm:-mb-6 px-5 sm:px-6 py-3 rounded-b-[28px] sm:rounded-b-[32px]">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Registrado em</span>
                             <span className="text-xs font-black text-slate-900">
                               {v.createdAt ? new Date(v.createdAt.seconds * 1000).toLocaleDateString('pt-BR') : '...'}

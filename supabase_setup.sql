@@ -6,6 +6,9 @@ CREATE TABLE IF NOT EXISTS visitors (
   name TEXT NOT NULL,
   phone TEXT NOT NULL,
   address TEXT NOT NULL,
+  age INTEGER,
+  gender TEXT,
+  birth_date DATE,
   invited_by TEXT, -- Novo campo: Quem fez o convite
   created_at TIMESTAMPTZ DEFAULT NOW(),
   created_by UUID REFERENCES auth.users(id) NOT NULL
@@ -16,6 +19,18 @@ DO $$
 BEGIN 
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='invited_by') THEN
     ALTER TABLE visitors ADD COLUMN invited_by TEXT;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='age') THEN
+    ALTER TABLE visitors ADD COLUMN age INTEGER;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='gender') THEN
+    ALTER TABLE visitors ADD COLUMN gender TEXT;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='birth_date') THEN
+    ALTER TABLE visitors ADD COLUMN birth_date DATE;
   END IF;
 END $$;
 

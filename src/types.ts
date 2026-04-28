@@ -3,6 +3,9 @@ export interface Visitor {
   name: string;
   phone: string;
   address: string;
+  age?: number;
+  gender?: string;
+  birthDate?: string;
   invitedBy?: string;
   createdAt: any; // ServerTimestamp
   createdBy: string;

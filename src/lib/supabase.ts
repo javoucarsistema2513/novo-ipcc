@@ -6,14 +6,9 @@ const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder'
 // Robust sanitization: Ensure we only have the base domain/origin
 // This prevents errors like edjjivudeovgfaqtonbm.supabase.co/rest/v1/auth/v1/signup
 if (supabaseUrl) {
-  // 1. Remove everything after the protocol and first slash (including /rest/v1)
-  // 2. Ensure it starts with https://
-  const match = supabaseUrl.match(/(https?:\/\/)?([^\/]+)/);
-  if (match) {
-    const protocol = match[1] || 'https://';
-    const domain = match[2];
-    supabaseUrl = `${protocol}${domain}`;
-  }
+  // Extract strictly the domain and protocol, ignoring any paths like /rest/v1
+  const cleanUrl = supabaseUrl.replace(/^https?:\/\//, '').split('/')[0];
+  supabaseUrl = `https://${cleanUrl}`;
 }
 
 if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {

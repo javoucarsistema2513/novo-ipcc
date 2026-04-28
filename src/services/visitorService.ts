@@ -23,6 +23,9 @@ export const visitorService = {
             name: visitorData.name,
             phone: visitorData.phone,
             address: visitorData.address,
+            age: visitorData.age,
+            gender: visitorData.gender,
+            birth_date: visitorData.birthDate,
             invited_by: visitorData.invitedBy,
             created_by: user.id,
           }
@@ -36,6 +39,9 @@ export const visitorService = {
         name: data.name,
         phone: data.phone,
         address: data.address,
+        age: data.age,
+        gender: data.gender,
+        birthDate: data.birth_date,
         invitedBy: data.invited_by,
         createdAt: { seconds: new Date(data.created_at).getTime() / 1000 },
         createdBy: data.created_by
@@ -61,6 +67,9 @@ export const visitorService = {
         name: v.name,
         phone: v.phone,
         address: v.address,
+        age: v.age,
+        gender: v.gender,
+        birthDate: v.birth_date,
         invitedBy: v.invited_by,
         createdAt: { seconds: new Date(v.created_at).getTime() / 1000 },
         createdBy: v.created_by
