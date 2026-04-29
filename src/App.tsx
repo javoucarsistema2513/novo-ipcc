@@ -288,7 +288,7 @@ export default function App() {
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="relative z-10 bg-white/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl p-6 sm:p-8 max-w-[340px] sm:max-w-[380px] w-full mx-auto border border-white/50"
+          className="relative z-10 bg-white/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl p-6 sm:p-8 max-w-[310px] sm:max-w-[380px] w-full mx-auto border border-white/50"
         >
           <div className="bg-blue-100 w-10 h-10 sm:w-14 sm:h-14 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-5">
             <Church className="text-blue-600 w-5 h-5 sm:w-7 sm:h-7" />
@@ -482,7 +482,7 @@ export default function App() {
                 </div>
 
                 {/* Centered Content */}
-                <div className="relative z-10 w-full max-w-sm px-8 pb-12 sm:pb-20">
+                <div className="relative z-10 w-full max-w-sm px-6 pb-24 sm:pb-20">
                   <motion.div
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
@@ -575,7 +575,7 @@ export default function App() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                         <div className="space-y-1 sm:space-y-2">
                           <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Telefone Principal</label>
                           <div className="relative">
@@ -605,7 +605,7 @@ export default function App() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-6">
                         <div className="space-y-1 sm:space-y-2">
                           <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Data de Nasc.</label>
                           <div className="relative">
@@ -631,7 +631,7 @@ export default function App() {
                             />
                           </div>
                         </div>
-                        <div className="space-y-1 sm:space-y-2 col-span-2 md:col-span-1">
+                        <div className="space-y-1 sm:space-y-2 col-span-2 sm:col-span-1">
                           <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Sexo</label>
                           <div className="flex gap-4 p-1">
                             <button
@@ -652,7 +652,7 @@ export default function App() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                         <div className="space-y-1 sm:space-y-2">
                           <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Participa de uma célula?</label>
                           <div className="flex gap-4 p-1">
@@ -707,7 +707,7 @@ export default function App() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                         <div className="space-y-1 sm:space-y-2">
                           <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Data Efetiva</label>
                           <input 
