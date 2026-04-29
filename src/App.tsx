@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { 
   Church, 
   UserPlus, 
@@ -26,13 +26,8 @@ import { visitorService } from './services/visitorService';
 import { Visitor } from './types';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
-// Extended jsPDF type for autotable
-interface jsPDFWithAutoTable extends jsPDF {
-  autoTable: (options: any) => jsPDF;
-}
-
 const PDFReportGenerator = (visitors: Visitor[]) => {
-  const doc = new jsPDF() as jsPDFWithAutoTable;
+  const doc = new jsPDF();
   
   doc.setFontSize(20);
   doc.text('Relatório de Visitantes - Igreja', 14, 22);
@@ -41,22 +36,37 @@ const PDFReportGenerator = (visitors: Visitor[]) => {
   doc.setTextColor(100);
   doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 30);
   
-  const tableData = visitors.map((v, i) => [
-    i + 1,
-    v.name,
-    v.phone,
-    v.age || '-',
-    v.gender || '-',
-    v.birthDate ? new Date(v.birthDate).toLocaleDateString('pt-BR') : '-',
-    v.invitedBy || '-',
-    v.participatesInCell === 'sim' ? 'Sim' : v.participatesInCell === 'nao' ? 'Não' : '-',
-    v.isMarriedOrLivesTogether === 'sim' ? 'Sim' : v.isMarriedOrLivesTogether === 'nao' ? 'Não' : '-',
-    v.prayerRequest || '-',
-    v.address,
-    v.createdAt ? new Date(v.createdAt.seconds * 1000).toLocaleDateString('pt-BR') : '-'
-  ]);
+  const tableData = visitors.map((v, i) => {
+    let dateStr = '-';
+    try {
+      if (v.createdAt) {
+        if (typeof v.createdAt === 'object' && v.createdAt.seconds) {
+          dateStr = new Date(v.createdAt.seconds * 1000).toLocaleDateString('pt-BR');
+        } else {
+          dateStr = new Date(v.createdAt).toLocaleDateString('pt-BR');
+        }
+      }
+    } catch (e) {
+      console.error('Error parsing date:', e);
+    }
+
+    return [
+      i + 1,
+      v.name,
+      v.phone,
+      v.age || '-',
+      v.gender || '-',
+      v.birthDate ? new Date(v.birthDate).toLocaleDateString('pt-BR') : '-',
+      v.invitedBy || '-',
+      v.participatesInCell === 'sim' ? 'Sim' : v.participatesInCell === 'nao' ? 'Não' : '-',
+      v.isMarriedOrLivesTogether === 'sim' ? 'Sim' : v.isMarriedOrLivesTogether === 'nao' ? 'Não' : '-',
+      v.prayerRequest || '-',
+      v.address,
+      dateStr
+    ];
+  });
   
-  doc.autoTable({
+  autoTable(doc, {
     startY: 35,
     head: [['#', 'Nome', 'Telefone', 'Idade', 'Sexo', 'Nasc.', 'Convidado por', 'Célula', 'Mora Junto', 'Algum pedido de Oração?', 'Endereço', 'Data']],
     body: tableData,
@@ -70,19 +80,34 @@ const PDFReportGenerator = (visitors: Visitor[]) => {
 
 const CSVReportGenerator = (visitors: Visitor[]) => {
   const headers = ['Nome', 'Telefone', 'Idade', 'Sexo', 'Data de Nascimento', 'Convidado por', 'Participa de Célula', 'Mora Junto/Casado', 'Algum pedido de Oração?', 'Endereço', 'Data de Cadastro'];
-  const rows = visitors.map(v => [
-    v.name,
-    v.phone,
-    v.age || '',
-    v.gender || '',
-    v.birthDate || '',
-    v.invitedBy || '',
-    v.participatesInCell || '',
-    v.isMarriedOrLivesTogether || '',
-    v.prayerRequest ? v.prayerRequest.replace(/,/g, ';').replace(/\n/g, ' ') : '',
-    v.address.replace(/,/g, ';'), // Prevent CSV breaking on commas in address
-    v.createdAt ? new Date(v.createdAt.seconds * 1000).toLocaleDateString('pt-BR') : ''
-  ]);
+  const rows = visitors.map(v => {
+    let dateStr = '';
+    try {
+      if (v.createdAt) {
+        if (typeof v.createdAt === 'object' && v.createdAt.seconds) {
+          dateStr = new Date(v.createdAt.seconds * 1000).toLocaleDateString('pt-BR');
+        } else {
+          dateStr = new Date(v.createdAt).toLocaleDateString('pt-BR');
+        }
+      }
+    } catch (e) {
+      console.error('Error parsing date:', e);
+    }
+
+    return [
+      v.name,
+      v.phone,
+      v.age || '',
+      v.gender || '',
+      v.birthDate || '',
+      v.invitedBy || '',
+      v.participatesInCell || '',
+      v.isMarriedOrLivesTogether || '',
+      v.prayerRequest ? v.prayerRequest.replace(/,/g, ';').replace(/\n/g, ' ') : '',
+      v.address.replace(/,/g, ';'),
+      dateStr
+    ];
+  });
 
   const csvContent = [
     headers.join(','),
