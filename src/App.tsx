@@ -249,7 +249,7 @@ export default function App() {
         await visitorService.updateVisitor(editingId, visitorData);
         setMessage({ type: 'success', text: 'Visitante atualizado com sucesso!' });
       } else {
-        await visitorService.addVisitor(visitorData);
+        await visitorService.addVisitor(visitorData, user?.id);
         setMessage({ type: 'success', text: 'Visitante cadastrado com sucesso!' });
       }
 
@@ -257,6 +257,7 @@ export default function App() {
       setEditingId(null);
       fetchVisitors();
     } catch (error) {
+      console.error('Submit Error:', error);
       setMessage({ type: 'error', text: editingId ? 'Erro ao atualizar visitante.' : 'Erro ao cadastrar visitante.' });
     } finally {
       setIsSubmitting(false);

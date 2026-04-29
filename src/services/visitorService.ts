@@ -11,10 +11,15 @@ export const visitorService = {
     }
   },
 
-  async addVisitor(visitorData: Omit<Visitor, 'id' | 'createdAt' | 'createdBy'>) {
+  async addVisitor(visitorData: Omit<Visitor, 'id' | 'createdAt' | 'createdBy'>, userId?: string) {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      let finalUserId = userId;
+      
+      if (!finalUserId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
+        finalUserId = user.id;
+      }
       
       const { data, error } = await supabase
         .from('visitors')
@@ -23,14 +28,14 @@ export const visitorService = {
             name: visitorData.name,
             phone: visitorData.phone,
             address: visitorData.address,
-            age: visitorData.age,
+            age: visitorData.age || null,
             gender: visitorData.gender,
-            birth_date: visitorData.birthDate,
+            birth_date: visitorData.birthDate || null,
             invited_by: visitorData.invitedBy,
             participates_in_cell: visitorData.participatesInCell,
             is_married_or_lives_together: visitorData.isMarriedOrLivesTogether,
             prayer_request: visitorData.prayerRequest,
-            created_by: user.id,
+            created_by: finalUserId,
           }
         ])
         .select()
@@ -106,18 +111,15 @@ export const visitorService = {
 
   async updateVisitor(id: string, visitorData: Partial<Visitor>) {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Não autenticado');
-
       const { data, error } = await supabase
         .from('visitors')
         .update({
           name: visitorData.name,
           phone: visitorData.phone,
           address: visitorData.address,
-          age: visitorData.age,
+          age: visitorData.age || null,
           gender: visitorData.gender,
-          birth_date: visitorData.birthDate,
+          birth_date: visitorData.birthDate || null,
           invited_by: visitorData.invitedBy,
           participates_in_cell: visitorData.participatesInCell,
           is_married_or_lives_together: visitorData.isMarriedOrLivesTogether,
