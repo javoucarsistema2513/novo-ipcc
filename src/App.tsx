@@ -492,7 +492,7 @@ export default function App() {
                     <div className="bg-white/10 backdrop-blur-2xl p-5 rounded-[2rem] w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center mb-8 border border-white/20 shadow-2xl">
                       <Church className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
                     </div>
-                    <h2 className="text-5xl sm:text-7xl font-black text-white mb-4 tracking-tighter uppercase leading-none drop-shadow-xl">
+                    <h2 className="text-4xl sm:text-7xl font-black text-white mb-4 tracking-tighter uppercase leading-none drop-shadow-xl">
                       Consolidação
                     </h2>
                     <div className="w-fit px-4 py-2 bg-blue-500/20 backdrop-blur-md rounded-full border border-blue-400/30">
