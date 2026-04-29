@@ -58,7 +58,7 @@ const PDFReportGenerator = (visitors: Visitor[]) => {
   
   doc.autoTable({
     startY: 35,
-    head: [['#', 'Nome', 'Telefone', 'Idade', 'Sexo', 'Nasc.', 'Convidado por', 'Célula', 'Mora Junto', 'Pedido Oração', 'Endereço', 'Data']],
+    head: [['#', 'Nome', 'Telefone', 'Idade', 'Sexo', 'Nasc.', 'Convidado por', 'Célula', 'Mora Junto', 'Algum pedido de Oração?', 'Endereço', 'Data']],
     body: tableData,
     theme: 'striped',
     headStyles: { fillColor: [30, 58, 138] },
