@@ -151,6 +151,11 @@ export default function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [userRole, setUserRole] = useState<'user' | 'admin'>('user');
+  const [userAdminCategory, setUserAdminCategory] = useState<'homens' | 'mulheres' | 'jovens' | null>(null);
+
+  const currentUserAdminCategory = user?.user_metadata?.admin_category as 'homens' | 'mulheres' | 'jovens' | undefined;
+  const isUserAdmin = !!currentUserAdminCategory;
 
   // Visitor form states
   const [showCategoryStep, setShowCategoryStep] = useState(true);
@@ -225,11 +230,13 @@ export default function App() {
           options: {
             data: {
               display_name: displayName,
+              admin_category: userRole === 'admin' ? userAdminCategory : null,
             }
           }
         });
         if (error) throw error;
-        setAuthError('Verifique seu e-mail para confirmar o cadastro!');
+        setAuthError('Cadastro realizado com sucesso! Você já pode entrar.');
+        setAuthMode('login');
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -412,6 +419,52 @@ export default function App() {
               </div>
             )}
 
+            {authMode === 'signup' && (
+              <div className="space-y-4 pt-2 border-t border-gray-100">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Tipo de Conta</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setUserRole('user')}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold border-2 transition-all ${userRole === 'user' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'}`}
+                    >
+                      Visitador
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setUserRole('admin')}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold border-2 transition-all ${userRole === 'admin' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'}`}
+                    >
+                      Administrador
+                    </button>
+                  </div>
+                </div>
+
+                {userRole === 'admin' && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="space-y-2 overflow-hidden"
+                  >
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Admin de:</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['homens', 'mulheres', 'jovens'] as const).map(cat => (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => setUserAdminCategory(cat)}
+                          className={`py-2 px-1 rounded-xl text-[10px] font-bold border-2 transition-all capitalize ${userAdminCategory === cat ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'}`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase mb-1 ml-1">E-mail</label>
               <div className="relative">
@@ -498,19 +551,27 @@ export default function App() {
             <UserPlus className="w-6 h-6 shrink-0" />
             <span className="font-bold text-sm hidden lg:block">Novo Visitante</span>
           </button>
-          <button 
-            onClick={() => setView('list')}
-            className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all ${view === 'list' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
-          >
-            <FileText className="w-6 h-6 shrink-0" />
-            <span className="font-bold text-sm hidden lg:block">Relatórios</span>
-          </button>
+            {isUserAdmin && (
+              <button 
+                onClick={() => {
+                  setView('list');
+                  setReportCategory(currentUserAdminCategory!);
+                }}
+                className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all ${view === 'list' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
+              >
+                <FileText className="w-6 h-6 shrink-0" />
+                <span className="font-bold text-sm hidden lg:block">Relatórios</span>
+              </button>
+            )}
         </nav>
 
         <div className="p-4 border-t border-slate-50 shrink-0">
           <div className="bg-slate-50 p-3 rounded-2xl mb-3 hidden lg:block">
             <p className="text-[10px] font-black uppercase text-slate-400 mb-1 tracking-widest">Usuário Logado</p>
             <p className="text-xs font-bold text-slate-700 truncate">{user.user_metadata?.display_name || user.email || 'Usuário'}</p>
+            <p className="text-[9px] font-black text-blue-500 uppercase mt-1">
+              {isUserAdmin ? `Admin ${currentUserAdminCategory}` : 'Visitador'}
+            </p>
           </div>
           <button 
             onClick={handleLogout}
@@ -981,19 +1042,21 @@ export default function App() {
                               <span>Filtrar por Grupo</span>
                             </div>
                             <div className="flex flex-wrap gap-2">
-                              {[
-                                { id: 'homens', label: 'Homens' },
-                                { id: 'mulheres', label: 'Mulheres' },
-                                { id: 'jovens', label: 'Jovens' }
-                              ].map((c) => (
-                                <button
-                                  key={c.id}
-                                  onClick={() => setReportCategory(c.id as any)}
-                                  className={`px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border-2 ${reportCategory === c.id ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-200' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200 hover:text-slate-600'}`}
-                                >
-                                  {c.label}
-                                </button>
-                              ))}
+                              {isUserAdmin ? (
+                                <div className="px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest bg-blue-600 text-white border-2 border-blue-600 shadow-lg shadow-blue-200">
+                                  {currentUserAdminCategory}
+                                </div>
+                              ) : (
+                                (['homens', 'mulheres', 'jovens'] as const).map((c) => (
+                                  <button
+                                    key={c}
+                                    onClick={() => setReportCategory(c)}
+                                    className={`px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border-2 ${reportCategory === c ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-200' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200 hover:text-slate-600'}`}
+                                  >
+                                    {c}
+                                  </button>
+                                ))
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1175,13 +1238,18 @@ export default function App() {
             <span className="text-[9px] font-black uppercase tracking-tighter">Novo</span>
           </button>
           
-          <button 
-            onClick={() => setView('list')}
-            className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${view === 'list' ? 'text-blue-600' : 'text-slate-400'}`}
-          >
-            <FileText className={`w-6 h-6 ${view === 'list' ? 'scale-110 drop-shadow-sm' : 'scale-100'}`} />
-            <span className="text-[9px] font-black uppercase tracking-tighter">Relatórios</span>
-          </button>
+          {isUserAdmin && (
+            <button 
+              onClick={() => {
+                setView('list');
+                setReportCategory(currentUserAdminCategory!);
+              }}
+              className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${view === 'list' ? 'text-blue-600' : 'text-slate-400'}`}
+            >
+              <FileText className={`w-6 h-6 ${view === 'list' ? 'scale-110 drop-shadow-sm' : 'scale-100'}`} />
+              <span className="text-[9px] font-black uppercase tracking-tighter">Relatórios</span>
+            </button>
+          )}
         </nav>
       </div>
     </div>
