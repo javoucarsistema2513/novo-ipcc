@@ -29,15 +29,18 @@ import { visitorService } from './services/visitorService';
 import { Visitor } from './types';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
-const PDFReportGenerator = (visitors: Visitor[]) => {
+const PDFReportGenerator = (visitors: Visitor[], category: string, period: string) => {
   const doc = new jsPDF();
   
+  const categoryLabel = category === 'homens' ? 'Homens' : category === 'mulheres' ? 'Mulheres' : 'Jovens';
+  const periodLabel = period === 'all' ? 'Todos' : period === 'weekly' ? 'Últimos 7 dias' : 'Últimos 30 dias';
+
   doc.setFontSize(20);
-  doc.text('Relatório de Visitantes - Igreja', 14, 22);
+  doc.text(`Relatório: ${categoryLabel}`, 14, 22);
   
   doc.setFontSize(11);
   doc.setTextColor(100);
-  doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 30);
+  doc.text(`Período: ${periodLabel} | Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 30);
   
   const tableData = visitors.map((v, i) => {
     let dateStr = '-';
@@ -79,10 +82,10 @@ const PDFReportGenerator = (visitors: Visitor[]) => {
     styles: { fontSize: 8 }
   });
   
-  doc.save('relatorio-visitantes.pdf');
+  doc.save(`relatorio-${category}-${period}.pdf`);
 };
 
-const CSVReportGenerator = (visitors: Visitor[]) => {
+const CSVReportGenerator = (visitors: Visitor[], category: string, period: string) => {
   const headers = ['Nome', 'Telefone', 'Grupo', 'Idade', 'Sexo', 'Data de Nascimento', 'Convidado por', 'Participa de Célula', 'Mora Junto/Casado', 'Algum pedido de Oração?', 'Endereço', 'Data de Cadastro'];
   const rows = visitors.map(v => {
     let dateStr = '';
@@ -123,7 +126,7 @@ const CSVReportGenerator = (visitors: Visitor[]) => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
-  link.setAttribute('download', 'relatorio-visitantes.csv');
+  link.setAttribute('download', `relatorio-${category}-${period}.csv`);
   link.style.visibility = 'hidden';
   document.body.appendChild(link);
   link.click();
@@ -144,7 +147,7 @@ export default function App() {
 
   // Report filter states
   const [reportPeriod, setReportPeriod] = useState<'all' | 'weekly' | 'monthly'>('all');
-  const [reportCategory, setReportCategory] = useState<'all' | 'homens' | 'mulheres' | 'jovens'>('all');
+  const [reportCategory, setReportCategory] = useState<'homens' | 'mulheres' | 'jovens'>('homens');
 
   // Auth form states
   const [email, setEmail] = useState('');
@@ -326,9 +329,7 @@ export default function App() {
     let filtered = [...visitors];
 
     // Filter by category
-    if (reportCategory !== 'all') {
-      filtered = filtered.filter(v => v.category === reportCategory);
-    }
+    filtered = filtered.filter(v => v.category === reportCategory);
 
     // Filter by period
     if (reportPeriod !== 'all') {
@@ -353,9 +354,9 @@ export default function App() {
     }
 
     if (type === 'pdf') {
-      PDFReportGenerator(filtered);
+      PDFReportGenerator(filtered, reportCategory, reportPeriod);
     } else {
-      CSVReportGenerator(filtered);
+      CSVReportGenerator(filtered, reportCategory, reportPeriod);
     }
   };
 
@@ -999,7 +1000,6 @@ export default function App() {
                             </div>
                             <div className="flex flex-wrap gap-2">
                               {[
-                                { id: 'all', label: 'Todos' },
                                 { id: 'homens', label: 'Homens' },
                                 { id: 'mulheres', label: 'Mulheres' },
                                 { id: 'jovens', label: 'Jovens' }
@@ -1060,6 +1060,15 @@ export default function App() {
                               <User className="w-5 h-5 sm:w-6 sm:h-6" />
                             </div>
                             <div className="flex items-center gap-2">
+                              {v.category && (
+                                <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full ${
+                                  v.category === 'homens' ? 'bg-blue-100 text-blue-700' : 
+                                  v.category === 'mulheres' ? 'bg-pink-100 text-pink-700' : 
+                                  'bg-violet-100 text-violet-700'
+                                }`}>
+                                  {v.category === 'homens' ? 'Homem' : v.category === 'mulheres' ? 'Mulher' : 'Jovem'}
+                                </span>
+                              )}
                               <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 bg-slate-50 px-3 py-1.5 rounded-full">
                                 ID: {v.id?.slice(-4)}
                               </span>
@@ -1116,8 +1125,11 @@ export default function App() {
                             {(v.participatesInCell || v.isMarriedOrLivesTogether) && (
                               <div className="flex flex-wrap gap-2">
                                 {v.participatesInCell && (
-                                  <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border ${v.participatesInCell === 'sim' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
+                                  <div className={`flex flex-col gap-1 px-2 py-1.5 rounded-lg border ${v.participatesInCell === 'sim' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
                                     <span className="text-[10px] font-black uppercase tracking-tight">Célula: {v.participatesInCell === 'sim' ? 'Sim' : 'Não'}</span>
+                                    {v.participatesInCell === 'sim' && v.cellLeader && (
+                                      <span className="text-[9px] font-bold text-emerald-600 block leading-none">Líder: {v.cellLeader}</span>
+                                    )}
                                   </div>
                                 )}
                                 {v.isMarriedOrLivesTogether && (
