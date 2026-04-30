@@ -8,6 +8,7 @@ export interface Visitor {
   birthDate?: string;
   invitedBy?: string;
   participatesInCell?: string;
+  cellLeader?: string;
   isMarriedOrLivesTogether?: string;
   prayerRequest?: string;
   createdAt: any; // ServerTimestamp

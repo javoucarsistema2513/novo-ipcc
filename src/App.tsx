@@ -58,7 +58,7 @@ const PDFReportGenerator = (visitors: Visitor[]) => {
       v.gender || '-',
       v.birthDate ? new Date(v.birthDate).toLocaleDateString('pt-BR') : '-',
       v.invitedBy || '-',
-      v.participatesInCell === 'sim' ? 'Sim' : v.participatesInCell === 'nao' ? 'Não' : '-',
+      v.participatesInCell === 'sim' ? `Sim ${v.cellLeader ? '(' + v.cellLeader + ')' : ''}` : v.participatesInCell === 'nao' ? 'Não' : '-',
       v.isMarriedOrLivesTogether === 'sim' ? 'Sim' : v.isMarriedOrLivesTogether === 'nao' ? 'Não' : '-',
       v.prayerRequest || '-',
       v.address,
@@ -101,7 +101,7 @@ const CSVReportGenerator = (visitors: Visitor[]) => {
       v.gender || '',
       v.birthDate || '',
       v.invitedBy || '',
-      v.participatesInCell || '',
+      v.participatesInCell === 'sim' ? `Sim ${v.cellLeader ? '(' + v.cellLeader + ')' : ''}` : v.participatesInCell || '',
       v.isMarriedOrLivesTogether || '',
       v.prayerRequest ? v.prayerRequest.replace(/,/g, ';').replace(/\n/g, ' ') : '',
       v.address.replace(/,/g, ';'),
@@ -152,6 +152,7 @@ export default function App() {
     gender: '',
     birthDate: '',
     participatesInCell: '',
+    cellLeader: '',
     isMarriedOrLivesTogether: '',
     prayerRequest: ''
   });
@@ -247,6 +248,7 @@ export default function App() {
       gender: visitor.gender || '',
       birthDate: visitor.birthDate || '',
       participatesInCell: visitor.participatesInCell || '',
+      cellLeader: visitor.cellLeader || '',
       isMarriedOrLivesTogether: visitor.isMarriedOrLivesTogether || '',
       prayerRequest: visitor.prayerRequest || ''
     });
@@ -256,7 +258,7 @@ export default function App() {
 
   const handleCancelEdit = () => {
     setEditingId(null);
-    setFormData({ name: '', phone: '', address: '', invitedBy: '', age: '', gender: '', birthDate: '', participatesInCell: '', isMarriedOrLivesTogether: '', prayerRequest: '' });
+    setFormData({ name: '', phone: '', address: '', invitedBy: '', age: '', gender: '', birthDate: '', participatesInCell: '', cellLeader: '', isMarriedOrLivesTogether: '', prayerRequest: '' });
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
@@ -278,7 +280,7 @@ export default function App() {
         setMessage({ type: 'success', text: 'Visitante cadastrado com sucesso!' });
       }
 
-      setFormData({ name: '', phone: '', address: '', invitedBy: '', age: '', gender: '', birthDate: '', participatesInCell: '', isMarriedOrLivesTogether: '', prayerRequest: '' });
+      setFormData({ name: '', phone: '', address: '', invitedBy: '', age: '', gender: '', birthDate: '', participatesInCell: '', cellLeader: '', isMarriedOrLivesTogether: '', prayerRequest: '' });
       setEditingId(null);
       fetchVisitors();
     } catch (error) {
@@ -689,13 +691,37 @@ export default function App() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => setFormData({...formData, participatesInCell: 'nao'})}
+                              onClick={() => setFormData({...formData, participatesInCell: 'nao', cellLeader: ''})}
                               className={`flex-1 h-12 sm:h-14 rounded-2xl font-bold transition-all border-2 ${formData.participatesInCell === 'nao' ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'}`}
                             >
                               Não
                             </button>
                           </div>
                         </div>
+
+                        <AnimatePresence>
+                          {formData.participatesInCell === 'sim' && (
+                            <motion.div 
+                              initial={{ opacity: 0, height: 0, marginTop: -20 }}
+                              animate={{ opacity: 1, height: 'auto', marginTop: 0 }}
+                              exit={{ opacity: 0, height: 0, marginTop: -20 }}
+                              className="space-y-1 sm:space-y-2 overflow-hidden"
+                            >
+                              <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome do Líder</label>
+                              <div className="relative">
+                                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4 sm:w-5 sm:h-5" />
+                                <input 
+                                  type="text" 
+                                  value={formData.cellLeader}
+                                  onChange={(e) => setFormData({...formData, cellLeader: e.target.value})}
+                                  placeholder="Nome do líder da célula"
+                                  className="input-field pl-10 sm:pl-12 h-12 sm:h-14 text-sm sm:text-base"
+                                />
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+
                         <div className="space-y-1 sm:space-y-2">
                           <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Mora Junto ou é casado?</label>
                           <div className="flex gap-4 p-1">
