@@ -678,7 +678,7 @@ export default function App() {
                           >
                             <div className="flex items-center gap-4">
                               <div className="bg-pink-100 p-3 rounded-2xl group-hover:bg-pink-600 group-hover:text-white transition-colors">
-                                <User className="w-6 h-6 rotate-180" />
+                                <User className="w-6 h-6" />
                               </div>
                               <span className="font-black text-lg text-slate-700 group-hover:text-pink-700">Mulheres</span>
                             </div>
