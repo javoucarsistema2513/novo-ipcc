@@ -9,6 +9,7 @@ export interface Visitor {
   invitedBy?: string;
   participatesInCell?: string;
   cellLeader?: string;
+  category?: 'homens' | 'mulheres' | 'jovens';
   isMarriedOrLivesTogether?: string;
   prayerRequest?: string;
   createdAt: any; // ServerTimestamp

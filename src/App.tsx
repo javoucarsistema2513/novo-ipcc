@@ -18,7 +18,10 @@ import {
   Baby,
   Trash2,
   Pencil,
-  X
+  X,
+  ChevronRight,
+  Sparkles,
+  Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from './lib/supabase';
@@ -54,6 +57,7 @@ const PDFReportGenerator = (visitors: Visitor[]) => {
       i + 1,
       v.name,
       v.phone,
+      v.category ? v.category.charAt(0).toUpperCase() + v.category.slice(1) : '-',
       v.age || '-',
       v.gender || '-',
       v.birthDate ? new Date(v.birthDate).toLocaleDateString('pt-BR') : '-',
@@ -68,7 +72,7 @@ const PDFReportGenerator = (visitors: Visitor[]) => {
   
   autoTable(doc, {
     startY: 35,
-    head: [['#', 'Nome', 'Telefone', 'Idade', 'Sexo', 'Nasc.', 'Convidado por', 'Célula', 'Mora Junto', 'Algum pedido de Oração?', 'Endereço', 'Data']],
+    head: [['#', 'Nome', 'Telefone', 'Grupo', 'Idade', 'Sexo', 'Nasc.', 'Convidado por', 'Célula', 'Mora Junto', 'Algum pedido de Oração?', 'Endereço', 'Data']],
     body: tableData,
     theme: 'striped',
     headStyles: { fillColor: [30, 58, 138] },
@@ -79,7 +83,7 @@ const PDFReportGenerator = (visitors: Visitor[]) => {
 };
 
 const CSVReportGenerator = (visitors: Visitor[]) => {
-  const headers = ['Nome', 'Telefone', 'Idade', 'Sexo', 'Data de Nascimento', 'Convidado por', 'Participa de Célula', 'Mora Junto/Casado', 'Algum pedido de Oração?', 'Endereço', 'Data de Cadastro'];
+  const headers = ['Nome', 'Telefone', 'Grupo', 'Idade', 'Sexo', 'Data de Nascimento', 'Convidado por', 'Participa de Célula', 'Mora Junto/Casado', 'Algum pedido de Oração?', 'Endereço', 'Data de Cadastro'];
   const rows = visitors.map(v => {
     let dateStr = '';
     try {
@@ -97,6 +101,7 @@ const CSVReportGenerator = (visitors: Visitor[]) => {
     return [
       v.name,
       v.phone,
+      v.category || '',
       v.age || '',
       v.gender || '',
       v.birthDate || '',
@@ -137,22 +142,41 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  // Report filter states
+  const [reportPeriod, setReportPeriod] = useState<'all' | 'weekly' | 'monthly'>('all');
+  const [reportCategory, setReportCategory] = useState<'all' | 'homens' | 'mulheres' | 'jovens'>('all');
+
   // Auth form states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
 
   // Visitor form states
-  const [formData, setFormData] = useState({ 
-    name: '', 
-    phone: '', 
-    address: '', 
+  const [showCategoryStep, setShowCategoryStep] = useState(true);
+  const [formData, setFormData] = useState<{
+    name: string;
+    phone: string;
+    address: string;
+    invitedBy: string;
+    age: string;
+    gender: string;
+    birthDate: string;
+    participatesInCell: string;
+    cellLeader: string;
+    category?: 'homens' | 'mulheres' | 'jovens';
+    isMarriedOrLivesTogether: string;
+    prayerRequest: string;
+  }>({
+    name: '',
+    phone: '',
+    address: '',
     invitedBy: '',
     age: '',
     gender: '',
     birthDate: '',
     participatesInCell: '',
     cellLeader: '',
+    category: undefined,
     isMarriedOrLivesTogether: '',
     prayerRequest: ''
   });
@@ -249,16 +273,19 @@ export default function App() {
       birthDate: visitor.birthDate || '',
       participatesInCell: visitor.participatesInCell || '',
       cellLeader: visitor.cellLeader || '',
+      category: visitor.category,
       isMarriedOrLivesTogether: visitor.isMarriedOrLivesTogether || '',
       prayerRequest: visitor.prayerRequest || ''
     });
+    setShowCategoryStep(false);
     setView('register');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
-    setFormData({ name: '', phone: '', address: '', invitedBy: '', age: '', gender: '', birthDate: '', participatesInCell: '', cellLeader: '', isMarriedOrLivesTogether: '', prayerRequest: '' });
+    setShowCategoryStep(true);
+    setFormData({ name: '', phone: '', address: '', invitedBy: '', age: '', gender: '', birthDate: '', participatesInCell: '', cellLeader: '', category: undefined, isMarriedOrLivesTogether: '', prayerRequest: '' });
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
@@ -280,14 +307,55 @@ export default function App() {
         setMessage({ type: 'success', text: 'Visitante cadastrado com sucesso!' });
       }
 
-      setFormData({ name: '', phone: '', address: '', invitedBy: '', age: '', gender: '', birthDate: '', participatesInCell: '', cellLeader: '', isMarriedOrLivesTogether: '', prayerRequest: '' });
+      setFormData({ name: '', phone: '', address: '', invitedBy: '', age: '', gender: '', birthDate: '', participatesInCell: '', cellLeader: '', category: undefined, isMarriedOrLivesTogether: '', prayerRequest: '' });
       setEditingId(null);
+      setShowCategoryStep(true);
       fetchVisitors();
+      
+      // Scroll to top to see success message
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (error) {
       console.error('Submit Error:', error);
       setMessage({ type: 'error', text: editingId ? 'Erro ao atualizar visitante.' : 'Erro ao cadastrar visitante.' });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleGenerateReport = (type: 'pdf' | 'csv') => {
+    let filtered = [...visitors];
+
+    // Filter by category
+    if (reportCategory !== 'all') {
+      filtered = filtered.filter(v => v.category === reportCategory);
+    }
+
+    // Filter by period
+    if (reportPeriod !== 'all') {
+      const now = new Date();
+      const limitDate = new Date();
+      if (reportPeriod === 'weekly') {
+        limitDate.setDate(now.getDate() - 7);
+      } else if (reportPeriod === 'monthly') {
+        limitDate.setDate(now.getDate() - 30);
+      }
+
+      filtered = filtered.filter(v => {
+        if (!v.createdAt) return false;
+        const date = v.createdAt.seconds ? new Date(v.createdAt.seconds * 1000) : new Date(v.createdAt);
+        return date >= limitDate;
+      });
+    }
+
+    if (filtered.length === 0) {
+      alert('Nenhum visitante encontrado para os filtros selecionados.');
+      return;
+    }
+
+    if (type === 'pdf') {
+      PDFReportGenerator(filtered);
+    } else {
+      CSVReportGenerator(filtered);
     }
   };
 
@@ -424,7 +492,11 @@ export default function App() {
             <span className="font-bold text-sm hidden lg:block">Início</span>
           </button>
           <button 
-            onClick={() => setView('register')}
+            onClick={() => {
+              setView('register');
+              setShowCategoryStep(true);
+              handleCancelEdit();
+            }}
             className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all ${view === 'register' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
           >
             <UserPlus className="w-6 h-6 shrink-0" />
@@ -532,7 +604,11 @@ export default function App() {
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.4 }}
-                    onClick={() => setView('register')}
+                    onClick={() => {
+                      setView('register');
+                      setShowCategoryStep(true);
+                      handleCancelEdit();
+                    }}
                     className="w-full bg-white text-blue-950 h-16 rounded-[2rem] font-black text-xl uppercase tracking-[0.2em] shadow-[0_20px_50px_rgba(0,0,0,0.4)] hover:bg-blue-50 active:scale-95 transition-all flex items-center justify-center gap-3 group"
                   >
                     Iniciar
@@ -573,19 +649,78 @@ export default function App() {
                   </div>
 
                   <div className="card-native p-4 sm:p-10 transform transition-all duration-500 hover:shadow-2xl hover:shadow-blue-900/5">
-                    {message && (
-                      <motion.div 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        className={`mb-8 p-5 rounded-2xl flex items-center gap-4 ${message.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}
-                      >
-                        {message.type === 'success' && <CheckCircle2 className="w-6 h-6 shrink-0" />}
-                        <span className="font-bold text-sm">{message.text}</span>
-                        <button onClick={() => setMessage(null)} className="ml-auto p-1 bg-white/20 rounded-lg hover:bg-white/40">×</button>
-                      </motion.div>
-                    )}
+                    {showCategoryStep && !editingId ? (
+                      <div className="space-y-8 py-4">
+                        <div className="text-center">
+                          <h3 className="text-xl sm:text-2xl font-black text-slate-800 mb-2">Selecione o Grupo</h3>
+                          <p className="text-slate-500 text-sm font-medium">Para quem é este cadastro?</p>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 gap-4 sm:gap-6 max-w-sm mx-auto">
+                          <button
+                            onClick={() => {
+                              setFormData(prev => ({ ...prev, category: 'homens', gender: 'M' }));
+                              setShowCategoryStep(false);
+                            }}
+                            className="bg-white border-2 border-slate-100 hover:border-blue-600 hover:bg-blue-50/50 p-6 rounded-[2rem] flex items-center justify-between group transition-all"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="bg-blue-100 p-3 rounded-2xl group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                <User className="w-6 h-6" />
+                              </div>
+                              <span className="font-black text-lg text-slate-700 group-hover:text-blue-700">Homens</span>
+                            </div>
+                            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+                          </button>
 
-                    <form onSubmit={handleFormSubmit} className="space-y-4 sm:space-y-6">
+                          <button
+                            onClick={() => {
+                              setFormData(prev => ({ ...prev, category: 'mulheres', gender: 'F' }));
+                              setShowCategoryStep(false);
+                            }}
+                            className="bg-white border-2 border-slate-100 hover:border-pink-600 hover:bg-pink-50/50 p-6 rounded-[2rem] flex items-center justify-between group transition-all"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="bg-pink-100 p-3 rounded-2xl group-hover:bg-pink-600 group-hover:text-white transition-colors">
+                                <User className="w-6 h-6 rotate-180" />
+                              </div>
+                              <span className="font-black text-lg text-slate-700 group-hover:text-pink-700">Mulheres</span>
+                            </div>
+                            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-pink-500 group-hover:translate-x-1 transition-all" />
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setFormData(prev => ({ ...prev, category: 'jovens' }));
+                              setShowCategoryStep(false);
+                            }}
+                            className="bg-white border-2 border-slate-100 hover:border-violet-600 hover:bg-violet-50/50 p-6 rounded-[2rem] flex items-center justify-between group transition-all"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="bg-violet-100 p-3 rounded-2xl group-hover:bg-violet-600 group-hover:text-white transition-colors">
+                                <Sparkles className="w-6 h-6" />
+                              </div>
+                              <span className="font-black text-lg text-slate-700 group-hover:text-violet-700">Jovens</span>
+                            </div>
+                            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-violet-500 group-hover:translate-x-1 transition-all" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {message && (
+                          <motion.div 
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            className={`mb-8 p-5 rounded-2xl flex items-center gap-4 ${message.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}
+                          >
+                            {message.type === 'success' && <CheckCircle2 className="w-6 h-6 shrink-0" />}
+                            <span className="font-bold text-sm">{message.text}</span>
+                            <button onClick={() => setMessage(null)} className="ml-auto p-1 bg-white/20 rounded-lg hover:bg-white/40">×</button>
+                          </motion.div>
+                        )}
+
+                        <form onSubmit={handleFormSubmit} className="space-y-4 sm:space-y-6">
                       <div className="space-y-1 sm:space-y-2">
                         <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome do Visitante</label>
                         <div className="relative">
@@ -786,54 +921,123 @@ export default function App() {
 
                       <button 
                         disabled={isSubmitting}
-                        className="w-full btn-primary h-14 sm:h-16"
+                        className="w-full btn-primary h-14 sm:h-16 group"
                       >
                         {isSubmitting ? (
                           <Loader2 className="animate-spin w-6 h-6" />
                         ) : (
-                          <>
+                          <div className="flex items-center gap-2">
                             {editingId ? <CheckCircle2 className="w-6 h-6" /> : <UserPlus className="w-6 h-6" />}
                             <span>{editingId ? 'Salvar Alterações' : 'Confirmar Cadastro'}</span>
-                          </>
+                            <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                          </div>
                         )}
                       </button>
                     </form>
-                  </div>
+                  </>
+                )}
+              </div>
                 </motion.div>
               ) : (
                 <motion.div 
-                  key="list"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="space-y-8"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
-                    <div>
-                      <h2 className="text-3xl sm:text-4xl font-black text-slate-900 mb-1 tracking-tighter">Histórico</h2>
-                      <p className="text-slate-500 text-sm font-medium tracking-tight">Total de {visitors.length} registros.</p>
+                    key="list"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="space-y-8"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
+                      <div>
+                        <h2 className="text-3xl sm:text-4xl font-black text-slate-900 mb-1 tracking-tighter">Relatórios & Gestão</h2>
+                        <p className="text-slate-500 text-sm font-medium tracking-tight">Total de {visitors.length} registros.</p>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => PDFReportGenerator(visitors)}
-                        disabled={visitors.length === 0}
-                        className="flex items-center justify-center gap-2 bg-blue-50 text-blue-700 h-10 px-4 rounded-xl font-black hover:bg-blue-100 transition-all active:scale-95 disabled:opacity-40 shadow-sm text-xs"
-                      >
-                        <Download className="w-4 h-4" />
-                        PDF
-                      </button>
-                      <button 
-                        onClick={() => CSVReportGenerator(visitors)}
-                        disabled={visitors.length === 0}
-                        className="flex items-center justify-center gap-2 bg-emerald-50 text-emerald-700 h-10 px-4 rounded-xl font-black hover:bg-emerald-100 transition-all active:scale-95 disabled:opacity-40 shadow-sm text-xs"
-                      >
-                        <FileText className="w-4 h-4" />
-                        CSV
-                      </button>
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Advanced Report Config Card */}
+                    <div className="card-native p-6 sm:p-8 bg-white border-2 border-blue-100 shadow-xl shadow-blue-900/5 relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform duration-700 pointer-events-none">
+                        <FileText className="w-32 h-32 text-blue-900" />
+                      </div>
+                      
+                      <div className="relative z-10">
+                        <div className="flex items-center gap-3 mb-8">
+                          <div className="bg-blue-600 p-2.5 rounded-2xl text-white shadow-lg shadow-blue-200">
+                            <FileText className="w-6 h-6" />
+                          </div>
+                          <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Configurar Exportação</h3>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                          {/* Period Filter */}
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                              <Calendar className="w-3.5 h-3.5" />
+                              <span>Período de Cadastro</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {[
+                                { id: 'all', label: 'Tudo' },
+                                { id: 'weekly', label: 'Semanal' },
+                                { id: 'monthly', label: 'Mensal' }
+                              ].map((p) => (
+                                <button
+                                  key={p.id}
+                                  onClick={() => setReportPeriod(p.id as any)}
+                                  className={`px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border-2 ${reportPeriod === p.id ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-200' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200 hover:text-slate-600'}`}
+                                >
+                                  {p.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Category Filter */}
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                              <Users className="w-3.5 h-3.5" />
+                              <span>Filtrar por Grupo</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {[
+                                { id: 'all', label: 'Todos' },
+                                { id: 'homens', label: 'Homens' },
+                                { id: 'mulheres', label: 'Mulheres' },
+                                { id: 'jovens', label: 'Jovens' }
+                              ].map((c) => (
+                                <button
+                                  key={c.id}
+                                  onClick={() => setReportCategory(c.id as any)}
+                                  className={`px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border-2 ${reportCategory === c.id ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-200' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200 hover:text-slate-600'}`}
+                                >
+                                  {c.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="pt-8 border-t border-slate-100 flex flex-wrap gap-4">
+                          <button 
+                            disabled={visitors.length === 0}
+                            onClick={() => handleGenerateReport('pdf')}
+                            className="flex-1 sm:flex-none bg-blue-600 text-white hover:bg-blue-700 px-8 h-14 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-blue-900/20 active:scale-95 transition-all disabled:opacity-40"
+                          >
+                            <Download className="w-5 h-5" />
+                            Gerar PDF
+                          </button>
+                          <button 
+                            disabled={visitors.length === 0}
+                            onClick={() => handleGenerateReport('csv')}
+                            className="flex-1 sm:flex-none bg-emerald-600 text-white hover:bg-emerald-700 px-8 h-14 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-emerald-900/20 active:scale-95 transition-all disabled:opacity-40"
+                          >
+                            <FileText className="w-5 h-5" />
+                            Exportar CSV
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {visitors.length === 0 ? (
                       <div className="md:col-span-2 py-20 text-center flex flex-col items-center justify-center bg-white rounded-[40px] border-2 border-dashed border-slate-100">
                         <div className="bg-slate-50 p-6 rounded-full mb-4">
