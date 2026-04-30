@@ -386,25 +386,25 @@ export default function App() {
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="relative z-10 bg-white/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl p-6 sm:p-8 max-w-[310px] sm:max-w-[380px] w-full mx-auto border border-white/50"
+          className="relative z-10 bg-white/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl p-5 sm:p-8 max-w-[310px] sm:max-w-[380px] w-full mx-auto border border-white/50"
         >
-          <div className="bg-blue-100 w-10 h-10 sm:w-14 sm:h-14 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-5">
+          <div className="bg-blue-100 w-10 h-10 sm:w-14 sm:h-14 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-4">
             <Church className="text-blue-600 w-5 h-5 sm:w-7 sm:h-7" />
           </div>
           
-          <h1 className="text-3xl sm:text-4xl font-black text-gray-900 text-center mb-2 tracking-tighter">Consolidação</h1>
-          <p className="text-blue-600 font-bold text-center mb-5 sm:mb-7 text-[10px] sm:text-[12px] uppercase tracking-[0.2em] px-3 py-1 bg-blue-50 rounded-lg w-fit mx-auto">Novo na Igreja</p>
+          <h1 className="text-2xl sm:text-4xl font-black text-gray-900 text-center mb-1 tracking-tighter">Consolidação</h1>
+          <p className="text-blue-600 font-bold text-center mb-4 sm:mb-6 text-[9px] sm:text-[12px] uppercase tracking-[0.2em] px-3 py-1 bg-blue-50 rounded-lg w-fit mx-auto">Novo na Igreja</p>
 
-          <form onSubmit={handleEmailAuth} className="space-y-3 sm:space-y-4">
+          <form onSubmit={handleEmailAuth} className="space-y-2.5 sm:space-y-4">
             {authError && (
-              <div className="p-3 rounded-lg bg-red-50 text-red-600 text-sm border border-red-100 italic">
+              <div className="p-2 sm:p-3 rounded-lg bg-red-50 text-red-600 text-[11px] sm:text-sm border border-red-100 italic font-medium">
                 {authError}
               </div>
             )}
 
             {authMode === 'signup' && (
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1 ml-1">Nome Completo</label>
+                <label className="block text-[10px] font-bold text-gray-700 uppercase mb-0.5 ml-1">Nome Completo</label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <input 
@@ -413,28 +413,28 @@ export default function App() {
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="Seu nome"
-                    className="input-field pl-10 py-2.5 text-sm"
+                    className="input-field pl-10 py-2 text-sm"
                   />
                 </div>
               </div>
             )}
 
             {authMode === 'signup' && (
-              <div className="space-y-4 pt-2 border-t border-gray-100">
+              <div className="space-y-3 pt-1 border-t border-gray-100">
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Tipo de Conta</label>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Tipo de Conta</label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => setUserRole('user')}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold border-2 transition-all ${userRole === 'user' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'}`}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold border-2 transition-all ${userRole === 'user' ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'}`}
                     >
                       Visitador
                     </button>
                     <button
                       type="button"
                       onClick={() => setUserRole('admin')}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold border-2 transition-all ${userRole === 'admin' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'}`}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold border-2 transition-all ${userRole === 'admin' ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'}`}
                     >
                       Administrador
                     </button>
@@ -445,16 +445,16 @@ export default function App() {
                   <motion.div 
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
-                    className="space-y-2 overflow-hidden"
+                    className="space-y-1.5 overflow-hidden"
                   >
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Admin de:</label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">Admin de:</label>
+                    <div className="grid grid-cols-3 gap-1.5">
                       {(['homens', 'mulheres', 'jovens'] as const).map(cat => (
                         <button
                           key={cat}
                           type="button"
                           onClick={() => setUserAdminCategory(cat)}
-                          className={`py-2 px-1 rounded-xl text-[10px] font-bold border-2 transition-all capitalize ${userAdminCategory === cat ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'}`}
+                          className={`py-1.5 px-1 rounded-lg text-[9px] font-black uppercase tracking-tight border-2 transition-all ${userAdminCategory === cat ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'}`}
                         >
                           {cat}
                         </button>
@@ -466,7 +466,7 @@ export default function App() {
             )}
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1 ml-1">E-mail</label>
+              <label className="block text-[10px] font-bold text-gray-700 uppercase mb-0.5 ml-1">E-mail</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input 
@@ -475,13 +475,13 @@ export default function App() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="exemplo@igreja.com"
-                  className="input-field pl-10 py-2.5 text-sm"
+                  className="input-field pl-10 py-2 text-sm"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1 ml-1">Senha</label>
+              <label className="block text-[10px] font-bold text-gray-700 uppercase mb-0.5 ml-1">Senha</label>
               <div className="relative">
                 <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input 
@@ -490,21 +490,20 @@ export default function App() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="input-field pl-10 py-2.5 text-sm"
+                  className="input-field pl-10 py-2 text-sm"
                 />
               </div>
             </div>
 
             <button 
               disabled={authLoading}
-              className="w-full btn-primary h-10 sm:h-11"
+              className="w-full btn-primary h-9 sm:h-11 flex items-center justify-center gap-2"
             >
               {authLoading ? <Loader2 className="animate-spin w-4 h-4" /> : (authMode === 'login' ? 'Entrar' : 'Criar Conta')}
             </button>
           </form>
 
-
-          <p className="mt-6 text-center text-[12px] sm:text-sm text-gray-500">
+          <p className="mt-4 text-center text-[11px] sm:text-sm text-gray-500">
             {authMode === 'login' ? 'Não tem conta?' : 'Já possui conta?'}
             <button 
               onClick={() => {
