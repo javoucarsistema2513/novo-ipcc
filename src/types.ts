@@ -6,7 +6,6 @@ export interface Visitor {
   age?: number;
   gender?: string;
   birthDate?: string;
-  invitedBy?: string;
   participatesInCell?: string;
   cellLeader?: string;
   category?: 'homens' | 'mulheres' | 'jovens';

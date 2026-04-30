@@ -64,7 +64,6 @@ const PDFReportGenerator = (visitors: Visitor[], category: string, period: strin
       v.age || '-',
       v.gender || '-',
       v.birthDate ? new Date(v.birthDate).toLocaleDateString('pt-BR') : '-',
-      v.invitedBy || '-',
       v.participatesInCell === 'sim' ? `Sim ${v.cellLeader ? '(' + v.cellLeader + ')' : ''}` : v.participatesInCell === 'nao' ? 'Não' : '-',
       v.isMarriedOrLivesTogether === 'sim' ? 'Sim' : v.isMarriedOrLivesTogether === 'nao' ? 'Não' : '-',
       v.prayerRequest || '-',
@@ -75,7 +74,7 @@ const PDFReportGenerator = (visitors: Visitor[], category: string, period: strin
   
   autoTable(doc, {
     startY: 35,
-    head: [['#', 'Nome', 'Telefone', 'Grupo', 'Idade', 'Sexo', 'Nasc.', 'Convidado por', 'Célula', 'Mora Junto', 'Algum pedido de Oração?', 'Endereço', 'Data']],
+    head: [['#', 'Nome', 'Telefone', 'Grupo', 'Idade', 'Sexo', 'Nasc.', 'Célula', 'Mora Junto', 'Algum pedido de Oração?', 'Endereço', 'Data']],
     body: tableData,
     theme: 'striped',
     headStyles: { fillColor: [30, 58, 138] },
@@ -86,7 +85,7 @@ const PDFReportGenerator = (visitors: Visitor[], category: string, period: strin
 };
 
 const CSVReportGenerator = (visitors: Visitor[], category: string, period: string) => {
-  const headers = ['Nome', 'Telefone', 'Grupo', 'Idade', 'Sexo', 'Data de Nascimento', 'Convidado por', 'Participa de Célula', 'Mora Junto/Casado', 'Algum pedido de Oração?', 'Endereço', 'Data de Cadastro'];
+  const headers = ['Nome', 'Telefone', 'Grupo', 'Idade', 'Sexo', 'Data de Nascimento', 'Participa de Célula', 'Mora Junto/Casado', 'Algum pedido de Oração?', 'Endereço', 'Data de Cadastro'];
   const rows = visitors.map(v => {
     let dateStr = '';
     try {
@@ -108,7 +107,6 @@ const CSVReportGenerator = (visitors: Visitor[], category: string, period: strin
       v.age || '',
       v.gender || '',
       v.birthDate || '',
-      v.invitedBy || '',
       v.participatesInCell === 'sim' ? `Sim ${v.cellLeader ? '(' + v.cellLeader + ')' : ''}` : v.participatesInCell || '',
       v.isMarriedOrLivesTogether || '',
       v.prayerRequest ? v.prayerRequest.replace(/,/g, ';').replace(/\n/g, ' ') : '',
@@ -160,7 +158,6 @@ export default function App() {
     name: string;
     phone: string;
     address: string;
-    invitedBy: string;
     age: string;
     gender: string;
     birthDate: string;
@@ -173,7 +170,6 @@ export default function App() {
     name: '',
     phone: '',
     address: '',
-    invitedBy: '',
     age: '',
     gender: '',
     birthDate: '',
@@ -270,7 +266,6 @@ export default function App() {
       name: visitor.name,
       phone: visitor.phone,
       address: visitor.address,
-      invitedBy: visitor.invitedBy || '',
       age: visitor.age?.toString() || '',
       gender: visitor.gender || '',
       birthDate: visitor.birthDate || '',
@@ -288,7 +283,7 @@ export default function App() {
   const handleCancelEdit = () => {
     setEditingId(null);
     setShowCategoryStep(true);
-    setFormData({ name: '', phone: '', address: '', invitedBy: '', age: '', gender: '', birthDate: '', participatesInCell: '', cellLeader: '', category: undefined, isMarriedOrLivesTogether: '', prayerRequest: '' });
+    setFormData({ name: '', phone: '', address: '', age: '', gender: '', birthDate: '', participatesInCell: '', cellLeader: '', category: undefined, isMarriedOrLivesTogether: '', prayerRequest: '' });
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
@@ -310,7 +305,7 @@ export default function App() {
         setMessage({ type: 'success', text: 'Visitante cadastrado com sucesso!' });
       }
 
-      setFormData({ name: '', phone: '', address: '', invitedBy: '', age: '', gender: '', birthDate: '', participatesInCell: '', cellLeader: '', category: undefined, isMarriedOrLivesTogether: '', prayerRequest: '' });
+      setFormData({ name: '', phone: '', address: '', age: '', gender: '', birthDate: '', participatesInCell: '', cellLeader: '', category: undefined, isMarriedOrLivesTogether: '', prayerRequest: '' });
       setEditingId(null);
       setShowCategoryStep(true);
       fetchVisitors();
@@ -752,19 +747,6 @@ export default function App() {
                             />
                           </div>
                         </div>
-                        <div className="space-y-1 sm:space-y-2">
-                          <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Quem Convidou?</label>
-                          <div className="relative">
-                            <UserPlus className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4 sm:w-5 sm:h-5" />
-                            <input 
-                              type="text" 
-                              value={formData.invitedBy}
-                              onChange={(e) => setFormData({...formData, invitedBy: e.target.value})}
-                              placeholder="Nome da pessoa"
-                              className="input-field pl-10 sm:pl-12 h-12 sm:h-14 text-sm sm:text-base"
-                            />
-                          </div>
-                        </div>
                       </div>
 
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-6">
@@ -1150,14 +1132,6 @@ export default function App() {
                               </div>
                             )}
 
-                            {v.invitedBy && (
-                              <div className="flex items-center gap-3 text-slate-600">
-                                <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-                                  <UserPlus className="w-4 h-4" />
-                                </div>
-                                <span className="text-xs font-bold text-slate-500 italic">Convidado por {v.invitedBy}</span>
-                              </div>
-                            )}
                             <div className="flex items-start gap-3 text-slate-400">
                               <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 shrink-0">
                                 <MapPin className="w-4 h-4" />
