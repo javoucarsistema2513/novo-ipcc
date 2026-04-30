@@ -303,12 +303,11 @@ export default function App() {
         {/* Background Image for Login Screen */}
         <div className="absolute inset-0 z-0">
           <img 
-            src="https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&q=80&w=2070" 
-            alt="Agenda aberta com caneta esferográfica" 
+            src="https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&q=80&w=2070" 
+            alt="Pessoas unidas em círculo com mãos ao centro" 
             className="w-full h-full object-cover"
-            referrerPolicy="no-referrer"
           />
-          <div className="absolute inset-0 bg-blue-950/50 backdrop-blur-[1px]" />
+          <div className="absolute inset-0 bg-blue-900/10" />
         </div>
 
         <motion.div 
@@ -486,15 +485,14 @@ export default function App() {
               >
                 {/* Background Image - Full Screen App Look */}
                 <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-                  <img 
-                    src="https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&q=80&w=2070" 
-                    alt="Agenda aberta com caneta esferográfica" 
-                    className="w-full h-full object-cover scale-105"
-                    referrerPolicy="no-referrer"
+                   <img 
+                    src="https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&q=80&w=2070" 
+                    alt="Pessoas unidas em círculo com mãos ao centro" 
+                    className="w-full h-full object-cover"
                   />
                   {/* Reduced overlay for maximum image impact */}
-                  <div className="absolute inset-0 bg-blue-950/20" />
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-950/10 to-blue-950/70" />
+                  <div className="absolute inset-0 bg-blue-900/5" />
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-900/5 to-blue-900/30" />
                 </div>
 
                 {/* Top Actions (Minimalist) */}
