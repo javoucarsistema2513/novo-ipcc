@@ -195,8 +195,8 @@ export default function App() {
   const [userAdminCategory, setUserAdminCategory] = useState<'homens' | 'mulheres' | 'jovens' | null>(null);
 
   const currentUserAdminCategory = user?.user_metadata?.admin_category as 'homens' | 'mulheres' | 'jovens' | undefined;
-  const isUserAdmin = !!currentUserAdminCategory || user?.email === 'javoucarsistema@gmail.com';
-  const effectiveAdminCategory = currentUserAdminCategory || (user?.email === 'javoucarsistema@gmail.com' ? 'homens' : null);
+  const isUserAdmin = !!currentUserAdminCategory || user?.email === 'adminnovo@gmail.com';
+  const effectiveAdminCategory = currentUserAdminCategory || (user?.email === 'adminnovo@gmail.com' ? 'homens' : null);
 
   // Visitor form states
   const [showCategoryStep, setShowCategoryStep] = useState(true);
@@ -1031,6 +1031,128 @@ export default function App() {
                 )}
               </div>
                 </motion.div>
+              ) : view === 'users' && isUserAdmin ? (
+                <motion.div 
+                  key="users"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="space-y-6 sm:space-y-8"
+                >
+                  <div className="mb-2 px-1">
+                    <h2 className="text-3xl sm:text-4xl font-black text-slate-900 mb-1 tracking-tighter">Usuários</h2>
+                    <p className="text-slate-500 text-xs sm:text-sm font-medium tracking-tight">Gerencie os acessos do sistema.</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+                    {/* Create User Form */}
+                    <div className="card-native p-6 sm:p-8">
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="bg-blue-100 p-2 rounded-xl text-blue-600">
+                          <UserPlus className="w-5 h-5" />
+                        </div>
+                        <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Cadastrar Novo Acesso</h3>
+                      </div>
+
+                      {adminCreateMessage && (
+                        <div className={`mb-6 p-4 rounded-xl text-xs font-bold italic border ${
+                          adminCreateMessage.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-red-50 border-red-100 text-red-700'
+                        }`}>
+                          {adminCreateMessage.text}
+                        </div>
+                      )}
+
+                      <form onSubmit={handleAdminCreateAccount} className="space-y-4">
+                        <div>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome Completo</label>
+                          <input 
+                            required
+                            type="text" 
+                            value={adminNewUserDisplayName}
+                            onChange={(e) => setAdminNewUserDisplayName(e.target.value)}
+                            placeholder="Nome do colaborador"
+                            className="input-field py-3"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail de Acesso</label>
+                          <input 
+                            required
+                            type="email" 
+                            value={adminNewUserEmail}
+                            onChange={(e) => setAdminNewUserEmail(e.target.value)}
+                            placeholder="exemplo@igreja.com"
+                            className="input-field py-3"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha Inicial</label>
+                          <input 
+                            required
+                            type="password" 
+                            value={adminNewUserPassword}
+                            onChange={(e) => setAdminNewUserPassword(e.target.value)}
+                            placeholder="Crie uma senha"
+                            className="input-field py-3"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nível de Acesso</label>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+                            {[
+                              { id: 'user', label: 'Visitador' },
+                              { id: 'homens', label: 'Admin Homem' },
+                              { id: 'mulheres', label: 'Admin Mulher' },
+                              { id: 'jovens', label: 'Admin Jovem' }
+                            ].map(role => (
+                              <button
+                                key={role.id}
+                                type="button"
+                                onClick={() => setAdminNewUserCategory(role.id as any)}
+                                className={`py-2 px-1 rounded-xl text-[9px] font-black uppercase tracking-tighter border-2 transition-all ${
+                                  adminNewUserCategory === role.id ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
+                                }`}
+                              >
+                                {role.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <button 
+                          disabled={adminCreateLoading}
+                          className="w-full btn-primary h-12 flex items-center justify-center gap-2 mt-4"
+                        >
+                          {adminCreateLoading ? <Loader2 className="animate-spin w-5 h-5" /> : 'Criar Cadastro'}
+                        </button>
+                      </form>
+                    </div>
+
+                    {/* Current User Info */}
+                    <div className="card-native p-6 sm:p-8 bg-slate-900 text-white self-start">
+                      <h3 className="text-lg font-black mb-6 uppercase tracking-widest flex items-center gap-3">
+                        <ShieldCheck className="w-5 h-5 text-blue-400" />
+                        Seu Perfil
+                      </h3>
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Nome</p>
+                          <p className="text-xl font-black">{user?.user_metadata?.display_name || 'Admin'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">E-mail</p>
+                          <p className="text-slate-300 font-medium">{user?.email}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Nível</p>
+                          <span className="inline-block px-3 py-1 bg-blue-600 rounded-full text-[10px] font-black uppercase tracking-widest mt-1">
+                            Administrador {effectiveAdminCategory}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
               ) : (
                 <motion.div 
                     key="list"
@@ -1131,264 +1253,10 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {visitors.length === 0 ? (
-                      <div className="md:col-span-2 py-20 text-center flex flex-col items-center justify-center bg-white rounded-[40px] border-2 border-dashed border-slate-100">
-                        <div className="bg-slate-50 p-6 rounded-full mb-4">
-                          <Search className="w-12 h-12 text-slate-200" />
-                        </div>
-                        <h3 className="text-xl font-bold text-slate-900">Vazio por aqui</h3>
-                        <p className="text-slate-400 mt-1 max-w-[240px]">Os cadastros realizados aparecerão listados aqui.</p>
-                      </div>
-                    ) : (
-                      visitors.map((v, i) => (
-                        <motion.div 
-                          key={v.id} 
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: i * 0.05 }}
-                          className="bg-white p-5 sm:p-6 rounded-[28px] sm:rounded-[32px] border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all"
-                        >
-                          <div className="flex justify-between items-start mb-4">
-                            <div className="bg-blue-50 p-2 sm:p-3 rounded-2xl text-blue-600">
-                              <User className="w-5 h-5 sm:w-6 sm:h-6" />
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {v.category && (
-                                <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full ${
-                                  v.category === 'homens' ? 'bg-blue-100 text-blue-700' : 
-                                  v.category === 'mulheres' ? 'bg-pink-100 text-pink-700' : 
-                                  'bg-violet-100 text-violet-700'
-                                }`}>
-                                  {v.category === 'homens' ? 'Homem' : v.category === 'mulheres' ? 'Mulher' : 'Jovem'}
-                                </span>
-                              )}
-                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 bg-slate-50 px-3 py-1.5 rounded-full">
-                                ID: {v.id?.slice(-4)}
-                              </span>
-                              <button 
-                                onClick={() => handleEditVisitor(v)}
-                                className="p-2 text-blue-300 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
-                                title="Editar visitante"
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </button>
-                              <button 
-                                onClick={() => v.id && handleDeleteVisitor(v.id)}
-                                className="p-2 text-rose-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
-                                title="Remover visitante"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-                          
-                          <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight mb-2 uppercase">{v.name}</h3>
-                          
-                          <div className="space-y-3">
-                            <div className="flex items-center gap-3 text-slate-600">
-                              <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-                                <Phone className="w-4 h-4" />
-                              </div>
-                              <span className="text-sm font-bold">{v.phone}</span>
-                            </div>
-                            
-                            {(v.age || v.gender || v.birthDate) && (
-                              <div className="flex flex-wrap gap-2">
-                                {v.age && (
-                                  <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
-                                    <Baby className="w-3 h-3 text-slate-400" />
-                                    <span className="text-[10px] font-bold text-slate-600">{v.age} anos</span>
-                                  </div>
-                                )}
-                                {v.gender && (
-                                  <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
-                                    <User className="w-3 h-3 text-slate-400" />
-                                    <span className="text-[10px] font-bold text-slate-600">{v.gender === 'M' ? 'Masc.' : 'Fem.'}</span>
-                                  </div>
-                                )}
-                                {v.birthDate && (
-                                  <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
-                                    <Calendar className="w-3 h-3 text-slate-400" />
-                                    <span className="text-[10px] font-bold text-slate-600">Nasc. {new Date(v.birthDate).toLocaleDateString('pt-BR')}</span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
 
-                            {(v.participatesInCell || v.isMarriedOrLivesTogether) && (
-                              <div className="flex flex-wrap gap-2">
-                                {v.participatesInCell && (
-                                  <div className={`flex flex-col gap-1 px-2 py-1.5 rounded-lg border ${v.participatesInCell === 'sim' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
-                                    <span className="text-[10px] font-black uppercase tracking-tight">Célula: {v.participatesInCell === 'sim' ? 'Sim' : 'Não'}</span>
-                                    {v.participatesInCell === 'sim' && v.cellLeader && (
-                                      <span className="text-[9px] font-bold text-emerald-600 block leading-none">Líder: {v.cellLeader}</span>
-                                    )}
-                                  </div>
-                                )}
-                                {v.isMarriedOrLivesTogether && (
-                                  <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100 text-slate-600">
-                                    <span className="text-[10px] font-bold uppercase tracking-tight">Família: {v.isMarriedOrLivesTogether === 'sim' ? 'Casado/Mora Junto' : 'Solteiro'}</span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            {v.prayerRequest && (
-                              <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-100/50">
-                                <div className="flex items-center gap-1 mb-1">
-                                  <FileText className="w-3 h-3 text-amber-500" />
-                                  <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Algum pedido de Oração?</span>
-                                </div>
-                                <p className="text-xs text-amber-800 italic leading-relaxed line-clamp-3">{v.prayerRequest}</p>
-                              </div>
-                            )}
-
-                            <div className="flex items-start gap-3 text-slate-400">
-                              <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 shrink-0">
-                                <MapPin className="w-4 h-4" />
-                              </div>
-                              <span className="text-xs font-medium leading-relaxed line-clamp-2 sm:line-clamp-none">{v.address}</span>
-                            </div>
-                          </div>
-                          
-                          <div className="mt-6 pt-4 border-t border-slate-50 flex justify-between items-center bg-slate-50/50 -mx-5 sm:-mx-6 -mb-5 sm:-mb-6 px-5 sm:px-6 py-3 rounded-b-[28px] sm:rounded-b-[32px]">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Registrado em</span>
-                            <span className="text-xs font-black text-slate-900">
-                              {v.createdAt ? new Date(v.createdAt.seconds * 1000).toLocaleDateString('pt-BR') : '...'}
-                            </span>
-                          </div>
-                        </motion.div>
-                      ))
-                    )}
-                  </div>
                 </motion.div>
               )}
             </div>
-          )}
-
-          {view === 'users' && isUserAdmin && (
-            <motion.div 
-              key="users"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              className="space-y-6 sm:space-y-8"
-            >
-              <div className="mb-2 px-1">
-                <h2 className="text-3xl sm:text-4xl font-black text-slate-900 mb-1 tracking-tighter">Usuários</h2>
-                <p className="text-slate-500 text-xs sm:text-sm font-medium tracking-tight">Gerencie os acessos do sistema.</p>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
-                {/* Create User Form */}
-                <div className="card-native p-6 sm:p-8">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="bg-blue-100 p-2 rounded-xl text-blue-600">
-                      <UserPlus className="w-5 h-5" />
-                    </div>
-                    <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Cadastrar Novo Acesso</h3>
-                  </div>
-
-                  {adminCreateMessage && (
-                    <div className={`mb-6 p-4 rounded-xl text-xs font-bold italic border ${
-                      adminCreateMessage.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-red-50 border-red-100 text-red-700'
-                    }`}>
-                      {adminCreateMessage.text}
-                    </div>
-                  )}
-
-                  <form onSubmit={handleAdminCreateAccount} className="space-y-4">
-                    <div>
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome Completo</label>
-                      <input 
-                        required
-                        type="text" 
-                        value={adminNewUserDisplayName}
-                        onChange={(e) => setAdminNewUserDisplayName(e.target.value)}
-                        placeholder="Nome do colaborador"
-                        className="input-field py-3"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail de Acesso</label>
-                      <input 
-                        required
-                        type="email" 
-                        value={adminNewUserEmail}
-                        onChange={(e) => setAdminNewUserEmail(e.target.value)}
-                        placeholder="exemplo@igreja.com"
-                        className="input-field py-3"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha Inicial</label>
-                      <input 
-                        required
-                        type="password" 
-                        value={adminNewUserPassword}
-                        onChange={(e) => setAdminNewUserPassword(e.target.value)}
-                        placeholder="Crie uma senha"
-                        className="input-field py-3"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nível de Acesso</label>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
-                        {[
-                          { id: 'user', label: 'Visitador' },
-                          { id: 'homens', label: 'Admin Homem' },
-                          { id: 'mulheres', label: 'Admin Mulher' },
-                          { id: 'jovens', label: 'Admin Jovem' }
-                        ].map(role => (
-                          <button
-                            key={role.id}
-                            type="button"
-                            onClick={() => setAdminNewUserCategory(role.id as any)}
-                            className={`py-2 px-1 rounded-xl text-[9px] font-black uppercase tracking-tighter border-2 transition-all ${
-                              adminNewUserCategory === role.id ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-100 text-slate-400'
-                            }`}
-                          >
-                            {role.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <button 
-                      disabled={adminCreateLoading}
-                      className="w-full btn-primary h-12 flex items-center justify-center gap-2 mt-4"
-                    >
-                      {adminCreateLoading ? <Loader2 className="animate-spin w-5 h-5" /> : 'Criar Cadastro'}
-                    </button>
-                  </form>
-                </div>
-
-                {/* Current User Info */}
-                <div className="card-native p-6 sm:p-8 bg-slate-900 text-white self-start">
-                  <h3 className="text-lg font-black mb-6 uppercase tracking-widest flex items-center gap-3">
-                    <ShieldCheck className="w-5 h-5 text-blue-400" />
-                    Seu Perfil
-                  </h3>
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Nome</p>
-                      <p className="text-xl font-black">{user?.user_metadata?.display_name || 'Admin'}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">E-mail</p>
-                      <p className="text-slate-300 font-medium">{user?.email}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Nível</p>
-                      <span className="inline-block px-3 py-1 bg-blue-600 rounded-full text-[10px] font-black uppercase tracking-widest mt-1">
-                        Administrador {effectiveAdminCategory}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
           )}
         </AnimatePresence>
       </main>
