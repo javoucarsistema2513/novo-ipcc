@@ -26,6 +26,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from './lib/supabase';
 import { visitorService } from './services/visitorService';
+import { userService, UserProfile } from './services/userService';
 import { Visitor } from './types';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -154,34 +155,73 @@ export default function App() {
   const [adminNewUserCategory, setAdminNewUserCategory] = useState<'homens' | 'mulheres' | 'jovens' | 'user'>('user');
   const [adminCreateLoading, setAdminCreateLoading] = useState(false);
   const [adminCreateMessage, setAdminCreateMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [profiles, setProfiles] = useState<UserProfile[]>([]);
+  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
+  const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile | null>(null);
+
+  const fetchProfiles = async () => {
+    const data = await userService.getProfiles();
+    setProfiles(data);
+    if (user) {
+      const myProfile = data.find(p => p.id === user.id);
+      if (myProfile) setCurrentUserProfile(myProfile);
+    }
+  };
 
   const handleAdminCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     setAdminCreateLoading(true);
     setAdminCreateMessage(null);
     try {
-      const { error } = await supabase.auth.signUp({
-        email: adminNewUserEmail,
-        password: adminNewUserPassword,
-        options: {
-          data: {
+      if (editingProfileId) {
+        await userService.updateProfile(editingProfileId, {
+          display_name: adminNewUserDisplayName,
+          admin_category: adminNewUserCategory === 'user' ? null : adminNewUserCategory,
+          role: adminNewUserCategory === 'user' ? 'user' : 'admin'
+        });
+        setAdminCreateMessage({ 
+          type: 'success', 
+          text: 'Usuário atualizado com sucesso!' 
+        });
+        setEditingProfileId(null);
+      } else {
+        const { data, error } = await supabase.auth.signUp({
+          email: adminNewUserEmail,
+          password: adminNewUserPassword,
+          options: {
+            data: {
+              display_name: adminNewUserDisplayName,
+              admin_category: adminNewUserCategory === 'user' ? null : adminNewUserCategory,
+            }
+          }
+        });
+        if (error) throw error;
+        
+        if (data.user) {
+          await userService.upsertProfile({
+            id: data.user.id,
+            email: adminNewUserEmail,
             display_name: adminNewUserDisplayName,
             admin_category: adminNewUserCategory === 'user' ? null : adminNewUserCategory,
-          }
+            role: adminNewUserCategory === 'user' ? 'user' : 'admin'
+          });
         }
-      });
-      if (error) throw error;
-      setAdminCreateMessage({ 
-        type: 'success', 
-        text: 'Usuário criado com sucesso! Por segurança, você será deslogado para confirmar a conta. Saia e entre novamente.' 
-      });
+
+        setAdminCreateMessage({ 
+          type: 'success', 
+          text: 'Usuário criado com sucesso! Ele já aparece na lista abaixo.' 
+        });
+      }
+      
+      fetchProfiles();
       // Reset form
       setAdminNewUserEmail('');
       setAdminNewUserPassword('');
       setAdminNewUserDisplayName('');
+      setAdminNewUserCategory('user');
     } catch (error: any) {
       console.error(error);
-      setAdminCreateMessage({ type: 'error', text: error.message || 'Erro ao criar usuário.' });
+      setAdminCreateMessage({ type: 'error', text: error.message || 'Erro ao processar usuário.' });
     } finally {
       setAdminCreateLoading(false);
     }
@@ -194,8 +234,8 @@ export default function App() {
   const [userRole, setUserRole] = useState<'user' | 'admin'>('user');
   const [userAdminCategory, setUserAdminCategory] = useState<'homens' | 'mulheres' | 'jovens' | null>(null);
 
-  const currentUserAdminCategory = user?.user_metadata?.admin_category as 'homens' | 'mulheres' | 'jovens' | undefined;
-  const isUserAdmin = !!currentUserAdminCategory || user?.email === 'adminnovo@gmail.com';
+  const currentUserAdminCategory = currentUserProfile?.admin_category || (user?.user_metadata?.admin_category as 'homens' | 'mulheres' | 'jovens' | undefined);
+  const isUserAdmin = !!currentUserAdminCategory || user?.email === 'adminnovo@gmail.com' || currentUserProfile?.role === 'admin';
   const effectiveAdminCategory = currentUserAdminCategory || (user?.email === 'adminnovo@gmail.com' ? 'homens' : null);
 
   // Visitor form states
@@ -234,6 +274,17 @@ export default function App() {
       if (session?.user) {
         visitorService.testConnection();
         fetchVisitors();
+        fetchProfiles();
+        
+        // Auto-save current user profile
+        userService.upsertProfile({
+          id: session.user.id,
+          email: session.user.email || '',
+          display_name: session.user.user_metadata?.display_name || 'Usuário',
+          admin_category: session.user.user_metadata?.admin_category || null,
+          role: session.user.user_metadata?.admin_category ? 'admin' : 'user'
+        });
+
         setView('home');
       }
     });
@@ -243,6 +294,17 @@ export default function App() {
       if (session?.user) {
         visitorService.testConnection();
         fetchVisitors();
+        fetchProfiles();
+
+        // Auto-save current user profile
+        userService.upsertProfile({
+          id: session.user.id,
+          email: session.user.email || '',
+          display_name: session.user.user_metadata?.display_name || 'Usuário',
+          admin_category: session.user.user_metadata?.admin_category || null,
+          role: session.user.user_metadata?.admin_category ? 'admin' : 'user'
+        });
+
         setView('home');
       }
     });
@@ -265,7 +327,7 @@ export default function App() {
     setAuthError(null);
     try {
       if (authMode === 'signup') {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -276,6 +338,17 @@ export default function App() {
           }
         });
         if (error) throw error;
+
+        if (data.user) {
+          await userService.upsertProfile({
+            id: data.user.id,
+            email: email,
+            display_name: displayName,
+            admin_category: userRole === 'admin' ? userAdminCategory : null,
+            role: userRole === 'admin' ? 'admin' : 'user'
+          });
+        }
+
         setAuthError('Cadastro realizado com sucesso! Você já pode entrar.');
         setAuthMode('login');
       } else {
@@ -294,6 +367,27 @@ export default function App() {
   };
 
   const handleLogout = () => supabase.auth.signOut();
+
+  const handleDeleteUser = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja remover este usuário da lista? (Isso não remove o acesso dele do Supabase Auth, apenas da lista de gerenciamento)')) return;
+    try {
+      await userService.deleteProfile(id);
+      fetchProfiles();
+      setMessage({ type: 'success', text: 'Usuário removido da lista.' });
+    } catch (error) {
+      console.error(error);
+      setMessage({ type: 'error', text: 'Erro ao remover usuário.' });
+    }
+  };
+
+  const handleEditProfile = (profile: UserProfile) => {
+    setEditingProfileId(profile.id);
+    setAdminNewUserEmail(profile.email);
+    setAdminNewUserDisplayName(profile.display_name);
+    setAdminNewUserCategory(profile.admin_category || 'user');
+    setAdminNewUserPassword('********'); // Placeholder since we can't edit password
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleDeleteVisitor = async (id: string) => {
     if (!window.confirm('Tem certeza que deseja remover este visitante?')) return;
@@ -1047,11 +1141,29 @@ export default function App() {
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
                     {/* Create User Form */}
                     <div className="card-native p-6 sm:p-8">
-                      <div className="flex items-center gap-3 mb-6">
-                        <div className="bg-blue-100 p-2 rounded-xl text-blue-600">
-                          <UserPlus className="w-5 h-5" />
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                          <div className="bg-blue-100 p-2 rounded-xl text-blue-600">
+                            <UserPlus className="w-5 h-5" />
+                          </div>
+                          <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">
+                            {editingProfileId ? 'Editar Acesso' : 'Cadastrar Novo Acesso'}
+                          </h3>
                         </div>
-                        <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Cadastrar Novo Acesso</h3>
+                        {editingProfileId && (
+                          <button 
+                            onClick={() => {
+                              setEditingProfileId(null);
+                              setAdminNewUserEmail('');
+                              setAdminNewUserDisplayName('');
+                              setAdminNewUserPassword('');
+                              setAdminNewUserCategory('user');
+                            }}
+                            className="text-[10px] font-black text-rose-500 uppercase tracking-widest hover:underline"
+                          >
+                            Cancelar
+                          </button>
+                        )}
                       </div>
 
                       {adminCreateMessage && (
@@ -1078,23 +1190,27 @@ export default function App() {
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail de Acesso</label>
                           <input 
                             required
+                            disabled={!!editingProfileId}
                             type="email" 
                             value={adminNewUserEmail}
                             onChange={(e) => setAdminNewUserEmail(e.target.value)}
                             placeholder="exemplo@igreja.com"
-                            className="input-field py-3"
+                            className="input-field py-3 disabled:opacity-50"
                           />
+                          {editingProfileId && <p className="text-[9px] text-slate-400 mt-1 italic">* O e-mail não pode ser alterado aqui.</p>}
                         </div>
                         <div>
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha Inicial</label>
                           <input 
                             required
+                            disabled={!!editingProfileId}
                             type="password" 
                             value={adminNewUserPassword}
                             onChange={(e) => setAdminNewUserPassword(e.target.value)}
                             placeholder="Crie uma senha"
-                            className="input-field py-3"
+                            className="input-field py-3 disabled:opacity-50"
                           />
+                          {editingProfileId && <p className="text-[9px] text-slate-400 mt-1 italic">* A senha não pode ser alterada aqui.</p>}
                         </div>
                         <div>
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nível de Acesso</label>
@@ -1123,7 +1239,7 @@ export default function App() {
                           disabled={adminCreateLoading}
                           className="w-full btn-primary h-12 flex items-center justify-center gap-2 mt-4"
                         >
-                          {adminCreateLoading ? <Loader2 className="animate-spin w-5 h-5" /> : 'Criar Cadastro'}
+                          {adminCreateLoading ? <Loader2 className="animate-spin w-5 h-5" /> : (editingProfileId ? 'Salvar Alterações' : 'Criar Cadastro')}
                         </button>
                       </form>
                     </div>
@@ -1150,6 +1266,74 @@ export default function App() {
                           </span>
                         </div>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Users List */}
+                  <div className="card-native p-6 sm:p-8">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="bg-blue-100 p-2 rounded-xl text-blue-600">
+                        <Users className="w-5 h-5" />
+                      </div>
+                      <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Equipe Cadastrada</h3>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-slate-100">
+                            <th className="py-4 px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome</th>
+                            <th className="py-4 px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">E-mail</th>
+                            <th className="py-4 px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Nível</th>
+                            <th className="py-4 px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                          {profiles.length === 0 ? (
+                            <tr>
+                              <td colSpan={4} className="py-10 text-center text-slate-400 font-medium">Nenhum usuário listado.</td>
+                            </tr>
+                          ) : (
+                            profiles.map((p) => (
+                              <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                                <td className="py-4 px-2">
+                                  <div className="flex flex-col">
+                                    <span className="font-bold text-slate-800 text-sm">{p.display_name}</span>
+                                  </div>
+                                </td>
+                                <td className="py-4 px-2">
+                                  <span className="text-xs text-slate-500 font-medium">{p.email}</span>
+                                </td>
+                                <td className="py-4 px-2 text-center">
+                                  <span className={`inline-block px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tight ${
+                                    p.role === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+                                  }`}>
+                                    {p.role === 'admin' ? `Admin ${p.admin_category || ''}` : 'Visitador'}
+                                  </span>
+                                </td>
+                                <td className="py-4 px-2 text-right">
+                                  <div className="flex items-center justify-end gap-2">
+                                    <button 
+                                      onClick={() => handleEditProfile(p)}
+                                      className="p-2 text-blue-300 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
+                                      title="Editar informações"
+                                    >
+                                      <Pencil className="w-4 h-4" />
+                                    </button>
+                                    <button 
+                                      onClick={() => handleDeleteUser(p.id!)}
+                                      className="p-2 text-rose-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                                      title="Remover usuário da lista"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </motion.div>
