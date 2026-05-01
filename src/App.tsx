@@ -157,15 +157,26 @@ export default function App() {
   const [adminCreateLoading, setAdminCreateLoading] = useState(false);
   const [adminCreateMessage, setAdminCreateMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
+  const [profilesLoading, setProfilesLoading] = useState(false);
+  const [profilesError, setProfilesError] = useState<string | null>(null);
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
   const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile | null>(null);
 
   const fetchProfiles = async () => {
-    const data = await userService.getProfiles();
-    setProfiles(data);
-    if (user) {
-      const myProfile = data.find(p => p.id === user.id);
-      if (myProfile) setCurrentUserProfile(myProfile);
+    setProfilesLoading(true);
+    setProfilesError(null);
+    try {
+      const data = await userService.getProfiles();
+      setProfiles(data);
+      if (user) {
+        const myProfile = data.find(p => p.id === user.id);
+        if (myProfile) setCurrentUserProfile(myProfile);
+      }
+    } catch (err: any) {
+      console.error('Erro ao buscar perfis:', err);
+      setProfilesError('Não foi possível carregar a lista de usuários. Verifique as permissões.');
+    } finally {
+      setProfilesLoading(false);
     }
   };
 
@@ -268,6 +279,12 @@ export default function App() {
   });
 
   useEffect(() => {
+    if (view === 'users' && isUserAdmin) {
+      fetchProfiles();
+    }
+  }, [view, isUserAdmin]);
+
+  useEffect(() => {
     // Check active sessions and sets up the observer
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -289,7 +306,7 @@ export default function App() {
           role: role
         }).then(() => {
           fetchProfiles();
-        });
+        }).catch(err => console.error('Erro ao sincronizar perfil:', err));
 
         setView('home');
       }
@@ -1277,21 +1294,28 @@ export default function App() {
 
                   {/* Users List */}
                   <div className="card-native p-6 sm:p-8">
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-blue-100 p-2 rounded-xl text-blue-600">
-                          <Users className="w-5 h-5" />
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                          <div className="bg-blue-100 p-2 rounded-xl text-blue-600">
+                            <Users className="w-5 h-5" />
+                          </div>
+                          <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Equipe Cadastrada</h3>
                         </div>
-                        <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Equipe Cadastrada</h3>
+                        <button 
+                          onClick={fetchProfiles}
+                          disabled={profilesLoading}
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all disabled:opacity-50"
+                          title="Recarregar lista"
+                        >
+                          <RefreshCw className={`w-4 h-4 ${profilesLoading ? 'animate-spin' : ''}`} />
+                        </button>
                       </div>
-                      <button 
-                        onClick={fetchProfiles}
-                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-                        title="Recarregar lista"
-                      >
-                        <RefreshCw className="w-4 h-4" />
-                      </button>
-                    </div>
+
+                      {profilesError && (
+                        <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-xs font-bold italic">
+                          {profilesError}
+                        </div>
+                      )}
 
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse">
@@ -1304,7 +1328,16 @@ export default function App() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
-                          {profiles.length === 0 ? (
+                          {profilesLoading ? (
+                            <tr>
+                              <td colSpan={4} className="py-10 text-center">
+                                <div className="flex items-center justify-center gap-2 text-slate-400 font-bold uppercase tracking-widest text-[10px]">
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Carregando Equipe...
+                                </div>
+                              </td>
+                            </tr>
+                          ) : profiles.length === 0 ? (
                             <tr>
                               <td colSpan={4} className="py-10 text-center text-slate-400 font-medium">Nenhum usuário listado.</td>
                             </tr>

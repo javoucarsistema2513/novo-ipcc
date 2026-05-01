@@ -11,18 +11,16 @@ export interface UserProfile {
 
 export const userService = {
   async getProfiles() {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data as UserProfile[];
-    } catch (error) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
       console.error('Error fetching profiles:', error);
-      return [];
+      throw error;
     }
+    return data as UserProfile[];
   },
 
   async upsertProfile(profile: UserProfile) {
