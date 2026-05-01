@@ -62,5 +62,19 @@ export const userService = {
       console.error('Error deleting profile:', error);
       throw error;
     }
+  },
+
+  async deleteAllExceptMaster(masterEmails: string[]) {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .not('email', 'in', `(${masterEmails.join(',')})`);
+      
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error clearing profiles:', error);
+      throw error;
+    }
   }
 };

@@ -295,7 +295,7 @@ export default function App() {
         fetchVisitors();
         
         // Auto-save current user profile with master admin check
-        const isMasterAdmin = session.user.email === 'adminnovo@gmail.com' || session.user.email === 'javoucarsistema@gmail.com';
+        const isMasterAdmin = session.user.email === 'adminnovo@gmail.com';
         const role = (session.user.user_metadata?.admin_category || isMasterAdmin) ? 'admin' : 'user';
         const category = session.user.user_metadata?.admin_category || (isMasterAdmin ? 'homens' : null);
 
@@ -1302,12 +1302,35 @@ export default function App() {
                   {/* Users List */}
                   <div className="card-native p-6 sm:p-8">
                       <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-3">
-                          <div className="bg-blue-100 p-2 rounded-xl text-blue-600">
-                            <Users className="w-5 h-5" />
-                          </div>
-                          <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Equipe Cadastrada</h3>
+                      <div className="flex items-center gap-3">
+                        <div className="bg-blue-100 p-2 rounded-xl text-blue-600">
+                          <Users className="w-5 h-5" />
                         </div>
+                        <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Equipe Cadastrada</h3>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isUserAdmin && (user?.email === 'adminnovo@gmail.com' || user?.email === 'javoucarsistema@gmail.com') && (
+                          <button 
+                            onClick={async () => {
+                              if (!window.confirm('Deseja excluir TODOS os usuários da equipe (exceto o master)?')) return;
+                              try {
+                                setProfilesLoading(true);
+                                await userService.deleteAllExceptMaster(['adminnovo@gmail.com']);
+                                fetchProfiles();
+                                setMessage({ type: 'success', text: 'Equipe limpada. Apenas o master foi mantido.' });
+                              } catch (err) {
+                                console.error(err);
+                                setMessage({ type: 'error', text: 'Erro ao limpar. Verifique as regras SQL.' });
+                              } finally {
+                                setProfilesLoading(false);
+                              }
+                            }}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all border border-rose-100"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            Manter apenas Master
+                          </button>
+                        )}
                         <button 
                           onClick={fetchProfiles}
                           disabled={profilesLoading}
@@ -1317,19 +1340,21 @@ export default function App() {
                           <RefreshCw className={`w-4 h-4 ${profilesLoading ? 'animate-spin' : ''}`} />
                         </button>
                       </div>
+                    </div>
 
-                      {profilesError && (
-                        <div className="mb-6">
-                          <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-xs font-bold italic">
-                            {profilesError}
-                          </div>
-                          <div className="bg-slate-900 p-5 rounded-2xl text-slate-300 font-mono text-[10px] space-y-2 overflow-x-auto border-2 border-blue-500/30">
-                            <p className="text-blue-400 font-bold mb-2 uppercase tracking-widest text-[9px]">Ação Necessária no Supabase Dashboard:</p>
-                            <p>1. Vá em <span className="text-white">SQL Editor</span></p>
-                            <p>2. Cole e execute o código abaixo:</p>
-                            <div className="bg-black/50 p-3 rounded-lg text-emerald-400 select-all border border-slate-700 mt-3">
-                              <pre>
-{`CREATE TABLE IF NOT EXISTS public.profiles (
+                    {profilesError && (
+                      <div className="mb-6">
+                        <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-xs font-bold italic">
+                          {profilesError}
+                        </div>
+                        <div className="bg-slate-900 p-5 rounded-2xl text-slate-300 font-mono text-[10px] space-y-2 overflow-x-auto border-2 border-blue-500/30">
+                          <p className="text-blue-400 font-bold mb-2 uppercase tracking-widest text-[9px]">Ação Necessária no Supabase Dashboard:</p>
+                          <p>1. Vá em <span className="text-white">SQL Editor</span></p>
+                          <p>2. Cole e execute o código abaixo:</p>
+                          <div className="bg-black/50 p-3 rounded-lg text-emerald-400 select-all border border-slate-700 mt-3">
+                            <pre>
+{`-- 1. Criar a tabela se não existir
+CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
   display_name TEXT,
@@ -1338,43 +1363,43 @@ export default function App() {
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
--- Habilitar RLS
+-- 2. Habilitar RLS
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- 1. Qualquer usuário autenticado pode VER a equipe
-CREATE POLICY "Perfis visíveis para todos" ON public.profiles
+-- 3. Remover políticas antigas para evitar duplicidade
+DROP POLICY IF EXISTS "Perfis visíveis para todos" ON public.profiles;
+DROP POLICY IF EXISTS "Usuários podem criar próprio perfil" ON public.profiles;
+DROP POLICY IF EXISTS "Usuários podem editar próprio perfil" ON public.profiles;
+DROP POLICY IF EXISTS "Admins master podem deletar" ON public.profiles;
+
+-- 4. Criar novas políticas robustas
+CREATE POLICY "Leitura pública para autenticados" ON public.profiles
   FOR SELECT TO authenticated USING (true);
 
--- 2. Usuários podem criar o próprio perfil (durante o log-in/signup)
-CREATE POLICY "Usuários podem criar próprio perfil" ON public.profiles
+CREATE POLICY "Inserção pelo próprio usuário" ON public.profiles
   FOR INSERT WITH CHECK (auth.uid() = id);
 
--- 3. Usuários podem EDITAR o próprio perfil
-CREATE POLICY "Usuários podem editar próprio perfil" ON public.profiles
-  FOR UPDATE USING (auth.uid() = id);
-
--- 4. Político para ADMINISTRADORES gerenciarem todos (Evitando recursão)
--- Execute este comando para os admins:
-CREATE POLICY "Admins master podem deletar" ON public.profiles
-  FOR DELETE USING (
-    email = 'javoucarsistema@gmail.com' OR email = 'adminnovo@gmail.com'
+CREATE POLICY "Edição pelo próprio usuário ou Master" ON public.profiles
+  FOR UPDATE USING (
+    auth.uid() = id OR 
+    (auth.jwt() ->> 'email' = 'adminnovo@gmail.com')
   );
 
-CREATE POLICY "Admins master podem atualizar" ON public.profiles
-  FOR UPDATE USING (
-    email = 'javoucarsistema@gmail.com' OR email = 'adminnovo@gmail.com'
+CREATE POLICY "Deleção por Master" ON public.profiles
+  FOR DELETE USING (
+    auth.jwt() ->> 'email' = 'adminnovo@gmail.com'
   );`}
-                              </pre>
-                            </div>
-                            <button 
-                              onClick={fetchProfiles}
-                              className="mt-4 w-full py-2 bg-blue-600 text-white rounded-xl font-black uppercase tracking-widest text-[9px] hover:bg-blue-700 transition-colors"
-                            >
-                              Já executei o código, tentar novamente
-                            </button>
+                            </pre>
                           </div>
+                          <button 
+                            onClick={fetchProfiles}
+                            className="mt-4 w-full py-2 bg-blue-600 text-white rounded-xl font-black uppercase tracking-widest text-[9px] hover:bg-blue-700 transition-colors"
+                          >
+                            Já executei o código, tentar novamente
+                          </button>
                         </div>
-                      )}
+                      </div>
+                    )}
 
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse">
