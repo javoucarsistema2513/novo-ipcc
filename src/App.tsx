@@ -173,8 +173,9 @@ export default function App() {
         if (myProfile) setCurrentUserProfile(myProfile);
       }
     } catch (err: any) {
-      console.error('Erro ao buscar perfis:', err);
-      setProfilesError('Não foi possível carregar a lista de usuários. Verifique as permissões.');
+      console.error('Erro detalhado ao buscar perfis:', err);
+      const errorMessage = err.message || (err.error_description) || JSON.stringify(err);
+      setProfilesError(`Erro de acesso: ${errorMessage}. Verifique se a tabela 'profiles' existe e tem políticas RLS ativas no Supabase.`);
     } finally {
       setProfilesLoading(false);
     }
@@ -294,7 +295,7 @@ export default function App() {
         fetchVisitors();
         
         // Auto-save current user profile with master admin check
-        const isMasterAdmin = session.user.email === 'adminnovo@gmail.com';
+        const isMasterAdmin = session.user.email === 'adminnovo@gmail.com' || session.user.email === 'javoucarsistema@gmail.com';
         const role = (session.user.user_metadata?.admin_category || isMasterAdmin) ? 'admin' : 'user';
         const category = session.user.user_metadata?.admin_category || (isMasterAdmin ? 'homens' : null);
 
@@ -1225,12 +1226,12 @@ export default function App() {
                         <div>
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha Inicial</label>
                           <input 
-                            required
+                            required={!editingProfileId}
                             disabled={!!editingProfileId}
                             type="password" 
                             value={adminNewUserPassword}
                             onChange={(e) => setAdminNewUserPassword(e.target.value)}
-                            placeholder="Crie uma senha"
+                            placeholder={editingProfileId ? "••••••••" : "Crie uma senha"}
                             className="input-field py-3 disabled:opacity-50"
                           />
                           {editingProfileId && <p className="text-[9px] text-slate-400 mt-1 italic">* A senha não pode ser alterada aqui.</p>}
@@ -1275,6 +1276,12 @@ export default function App() {
                       </h3>
                       <div className="space-y-4">
                         <div>
+                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Código</p>
+                          <p className="font-mono text-sm font-bold text-blue-400 bg-blue-900/50 px-2 py-1 rounded-md inline-block">
+                            {user?.id.slice(0, 8).toUpperCase()}
+                          </p>
+                        </div>
+                        <div>
                           <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Nome</p>
                           <p className="text-xl font-black">{user?.user_metadata?.display_name || 'Admin'}</p>
                         </div>
@@ -1312,8 +1319,60 @@ export default function App() {
                       </div>
 
                       {profilesError && (
-                        <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-xs font-bold italic">
-                          {profilesError}
+                        <div className="mb-6">
+                          <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-xs font-bold italic">
+                            {profilesError}
+                          </div>
+                          <div className="bg-slate-900 p-5 rounded-2xl text-slate-300 font-mono text-[10px] space-y-2 overflow-x-auto border-2 border-blue-500/30">
+                            <p className="text-blue-400 font-bold mb-2 uppercase tracking-widest text-[9px]">Ação Necessária no Supabase Dashboard:</p>
+                            <p>1. Vá em <span className="text-white">SQL Editor</span></p>
+                            <p>2. Cole e execute o código abaixo:</p>
+                            <div className="bg-black/50 p-3 rounded-lg text-emerald-400 select-all border border-slate-700 mt-3">
+                              <pre>
+{`CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  display_name TEXT,
+  admin_category TEXT,
+  role TEXT DEFAULT 'user',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- Habilitar RLS
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+-- 1. Qualquer usuário autenticado pode VER a equipe
+CREATE POLICY "Perfis visíveis para todos" ON public.profiles
+  FOR SELECT TO authenticated USING (true);
+
+-- 2. Usuários podem criar o próprio perfil (durante o log-in/signup)
+CREATE POLICY "Usuários podem criar próprio perfil" ON public.profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
+
+-- 3. Usuários podem EDITAR o próprio perfil
+CREATE POLICY "Usuários podem editar próprio perfil" ON public.profiles
+  FOR UPDATE USING (auth.uid() = id);
+
+-- 4. Político para ADMINISTRADORES gerenciarem todos (Evitando recursão)
+-- Execute este comando para os admins:
+CREATE POLICY "Admins master podem deletar" ON public.profiles
+  FOR DELETE USING (
+    email = 'javoucarsistema@gmail.com' OR email = 'adminnovo@gmail.com'
+  );
+
+CREATE POLICY "Admins master podem atualizar" ON public.profiles
+  FOR UPDATE USING (
+    email = 'javoucarsistema@gmail.com' OR email = 'adminnovo@gmail.com'
+  );`}
+                              </pre>
+                            </div>
+                            <button 
+                              onClick={fetchProfiles}
+                              className="mt-4 w-full py-2 bg-blue-600 text-white rounded-xl font-black uppercase tracking-widest text-[9px] hover:bg-blue-700 transition-colors"
+                            >
+                              Já executei o código, tentar novamente
+                            </button>
+                          </div>
                         </div>
                       )}
 
@@ -1321,6 +1380,7 @@ export default function App() {
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="border-b border-slate-100">
+                            <th className="py-4 px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">Código</th>
                             <th className="py-4 px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome</th>
                             <th className="py-4 px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">E-mail</th>
                             <th className="py-4 px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Nível</th>
@@ -1330,7 +1390,7 @@ export default function App() {
                         <tbody className="divide-y divide-slate-50">
                           {profilesLoading ? (
                             <tr>
-                              <td colSpan={4} className="py-10 text-center">
+                              <td colSpan={5} className="py-10 text-center">
                                 <div className="flex items-center justify-center gap-2 text-slate-400 font-bold uppercase tracking-widest text-[10px]">
                                   <Loader2 className="w-4 h-4 animate-spin" />
                                   Carregando Equipe...
@@ -1339,11 +1399,16 @@ export default function App() {
                             </tr>
                           ) : profiles.length === 0 ? (
                             <tr>
-                              <td colSpan={4} className="py-10 text-center text-slate-400 font-medium">Nenhum usuário listado.</td>
+                              <td colSpan={5} className="py-10 text-center text-slate-400 font-medium">Nenhum usuário listado.</td>
                             </tr>
                           ) : (
                             profiles.map((p) => (
                               <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                                <td className="py-4 px-2">
+                                  <span className="font-mono text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md">
+                                    {p.id.slice(0, 8).toUpperCase()}
+                                  </span>
+                                </td>
                                 <td className="py-4 px-2">
                                   <div className="flex flex-col">
                                     <span className="font-bold text-slate-800 text-sm">{p.display_name}</span>
