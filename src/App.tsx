@@ -21,7 +21,8 @@ import {
   X,
   ChevronRight,
   Sparkles,
-  Users
+  Users,
+  RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from './lib/supabase';
@@ -274,15 +275,20 @@ export default function App() {
       if (session?.user) {
         visitorService.testConnection();
         fetchVisitors();
-        fetchProfiles();
         
-        // Auto-save current user profile
+        // Auto-save current user profile with master admin check
+        const isMasterAdmin = session.user.email === 'adminnovo@gmail.com';
+        const role = (session.user.user_metadata?.admin_category || isMasterAdmin) ? 'admin' : 'user';
+        const category = session.user.user_metadata?.admin_category || (isMasterAdmin ? 'homens' : null);
+
         userService.upsertProfile({
           id: session.user.id,
           email: session.user.email || '',
           display_name: session.user.user_metadata?.display_name || 'Usuário',
-          admin_category: session.user.user_metadata?.admin_category || null,
-          role: session.user.user_metadata?.admin_category ? 'admin' : 'user'
+          admin_category: category,
+          role: role
+        }).then(() => {
+          fetchProfiles();
         });
 
         setView('home');
@@ -1271,11 +1277,20 @@ export default function App() {
 
                   {/* Users List */}
                   <div className="card-native p-6 sm:p-8">
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="bg-blue-100 p-2 rounded-xl text-blue-600">
-                        <Users className="w-5 h-5" />
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-blue-100 p-2 rounded-xl text-blue-600">
+                          <Users className="w-5 h-5" />
+                        </div>
+                        <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Equipe Cadastrada</h3>
                       </div>
-                      <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Equipe Cadastrada</h3>
+                      <button 
+                        onClick={fetchProfiles}
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                        title="Recarregar lista"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                      </button>
                     </div>
 
                     <div className="overflow-x-auto">
