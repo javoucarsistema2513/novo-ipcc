@@ -134,7 +134,7 @@ const CSVReportGenerator = (visitors: Visitor[], category: string, period: strin
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'home' | 'register' | 'list'>('home');
+  const [view, setView] = useState<'home' | 'register' | 'list' | 'users'>('home');
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -146,6 +146,46 @@ export default function App() {
   // Report filter states
   const [reportPeriod, setReportPeriod] = useState<'all' | 'weekly' | 'monthly'>('all');
   const [reportCategory, setReportCategory] = useState<'homens' | 'mulheres' | 'jovens'>('homens');
+
+  // Admin User Management states
+  const [adminNewUserEmail, setAdminNewUserEmail] = useState('');
+  const [adminNewUserPassword, setAdminNewUserPassword] = useState('');
+  const [adminNewUserDisplayName, setAdminNewUserDisplayName] = useState('');
+  const [adminNewUserCategory, setAdminNewUserCategory] = useState<'homens' | 'mulheres' | 'jovens' | 'user'>('user');
+  const [adminCreateLoading, setAdminCreateLoading] = useState(false);
+  const [adminCreateMessage, setAdminCreateMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  const handleAdminCreateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdminCreateLoading(true);
+    setAdminCreateMessage(null);
+    try {
+      const { error } = await supabase.auth.signUp({
+        email: adminNewUserEmail,
+        password: adminNewUserPassword,
+        options: {
+          data: {
+            display_name: adminNewUserDisplayName,
+            admin_category: adminNewUserCategory === 'user' ? null : adminNewUserCategory,
+          }
+        }
+      });
+      if (error) throw error;
+      setAdminCreateMessage({ 
+        type: 'success', 
+        text: 'Usuário criado com sucesso! Por segurança, você será deslogado para confirmar a conta. Saia e entre novamente.' 
+      });
+      // Reset form
+      setAdminNewUserEmail('');
+      setAdminNewUserPassword('');
+      setAdminNewUserDisplayName('');
+    } catch (error: any) {
+      console.error(error);
+      setAdminCreateMessage({ type: 'error', text: error.message || 'Erro ao criar usuário.' });
+    } finally {
+      setAdminCreateLoading(false);
+    }
+  };
 
   // Auth form states
   const [email, setEmail] = useState('');
@@ -504,16 +544,18 @@ export default function App() {
           </form>
 
           <p className="mt-4 text-center text-[11px] sm:text-sm text-gray-500">
-            {authMode === 'login' ? 'Não tem conta?' : 'Já possui conta?'}
-            <button 
-              onClick={() => {
-                setAuthMode(authMode === 'login' ? 'signup' : 'login');
-                setAuthError(null);
-              }}
-              className="ml-1 text-blue-600 font-bold hover:underline"
-            >
-              {authMode === 'login' ? 'Cadastre-se' : 'Entrar'}
-            </button>
+            {authMode === 'login' ? 'Área restrita para membros autorizados' : 'Já possui conta?'}
+            {authMode === 'signup' && (
+              <button 
+                onClick={() => {
+                  setAuthMode('login');
+                  setAuthError(null);
+                }}
+                className="ml-1 text-blue-600 font-bold hover:underline"
+              >
+                Entrar
+              </button>
+            )}
           </p>
         </motion.div>
       </div>
@@ -560,6 +602,15 @@ export default function App() {
               >
                 <FileText className="w-6 h-6 shrink-0" />
                 <span className="font-bold text-sm hidden lg:block">Relatórios</span>
+              </button>
+            )}
+            {isUserAdmin && (
+              <button 
+                onClick={() => setView('users')}
+                className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all ${view === 'users' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
+              >
+                <Users className="w-6 h-6 shrink-0" />
+                <span className="font-bold text-sm hidden lg:block">Usuários</span>
               </button>
             )}
         </nav>
@@ -1216,6 +1267,130 @@ export default function App() {
               )}
             </div>
           )}
+
+          {view === 'users' && isUserAdmin && (
+            <motion.div 
+              key="users"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              className="space-y-6 sm:space-y-8"
+            >
+              <div className="mb-2 px-1">
+                <h2 className="text-3xl sm:text-4xl font-black text-slate-900 mb-1 tracking-tighter">Usuários</h2>
+                <p className="text-slate-500 text-xs sm:text-sm font-medium tracking-tight">Gerencie os acessos do sistema.</p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+                {/* Create User Form */}
+                <div className="card-native p-6 sm:p-8">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="bg-blue-100 p-2 rounded-xl text-blue-600">
+                      <UserPlus className="w-5 h-5" />
+                    </div>
+                    <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Cadastrar Novo Acesso</h3>
+                  </div>
+
+                  {adminCreateMessage && (
+                    <div className={`mb-6 p-4 rounded-xl text-xs font-bold italic border ${
+                      adminCreateMessage.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-red-50 border-red-100 text-red-700'
+                    }`}>
+                      {adminCreateMessage.text}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleAdminCreateAccount} className="space-y-4">
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome Completo</label>
+                      <input 
+                        required
+                        type="text" 
+                        value={adminNewUserDisplayName}
+                        onChange={(e) => setAdminNewUserDisplayName(e.target.value)}
+                        placeholder="Nome do colaborador"
+                        className="input-field py-3"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail de Acesso</label>
+                      <input 
+                        required
+                        type="email" 
+                        value={adminNewUserEmail}
+                        onChange={(e) => setAdminNewUserEmail(e.target.value)}
+                        placeholder="exemplo@igreja.com"
+                        className="input-field py-3"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha Inicial</label>
+                      <input 
+                        required
+                        type="password" 
+                        value={adminNewUserPassword}
+                        onChange={(e) => setAdminNewUserPassword(e.target.value)}
+                        placeholder="Crie uma senha"
+                        className="input-field py-3"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nível de Acesso</label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+                        {[
+                          { id: 'user', label: 'Visitador' },
+                          { id: 'homens', label: 'Admin Homem' },
+                          { id: 'mulheres', label: 'Admin Mulher' },
+                          { id: 'jovens', label: 'Admin Jovem' }
+                        ].map(role => (
+                          <button
+                            key={role.id}
+                            type="button"
+                            onClick={() => setAdminNewUserCategory(role.id as any)}
+                            className={`py-2 px-1 rounded-xl text-[9px] font-black uppercase tracking-tighter border-2 transition-all ${
+                              adminNewUserCategory === role.id ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-100 text-slate-400'
+                            }`}
+                          >
+                            {role.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button 
+                      disabled={adminCreateLoading}
+                      className="w-full btn-primary h-12 flex items-center justify-center gap-2 mt-4"
+                    >
+                      {adminCreateLoading ? <Loader2 className="animate-spin w-5 h-5" /> : 'Criar Cadastro'}
+                    </button>
+                  </form>
+                </div>
+
+                {/* Current User Info */}
+                <div className="card-native p-6 sm:p-8 bg-slate-900 text-white self-start">
+                  <h3 className="text-lg font-black mb-6 uppercase tracking-widest flex items-center gap-3">
+                    <ShieldCheck className="w-5 h-5 text-blue-400" />
+                    Seu Perfil
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Nome</p>
+                      <p className="text-xl font-black">{user?.user_metadata?.display_name || 'Admin'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">E-mail</p>
+                      <p className="text-slate-300 font-medium">{user?.email}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Nível</p>
+                      <span className="inline-block px-3 py-1 bg-blue-600 rounded-full text-[10px] font-black uppercase tracking-widest mt-1">
+                        Administrador {currentUserAdminCategory}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
 
@@ -1247,6 +1422,16 @@ export default function App() {
             >
               <FileText className={`w-6 h-6 ${view === 'list' ? 'scale-110 drop-shadow-sm' : 'scale-100'}`} />
               <span className="text-[9px] font-black uppercase tracking-tighter">Relatórios</span>
+            </button>
+          )}
+
+          {isUserAdmin && (
+            <button 
+              onClick={() => setView('users')}
+              className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${view === 'users' ? 'text-blue-600' : 'text-slate-400'}`}
+            >
+              <Users className={`w-6 h-6 ${view === 'users' ? 'scale-110 drop-shadow-sm' : 'scale-100'}`} />
+              <span className="text-[9px] font-black uppercase tracking-tighter">Usuários</span>
             </button>
           )}
         </nav>
