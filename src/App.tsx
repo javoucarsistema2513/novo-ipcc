@@ -544,18 +544,16 @@ export default function App() {
           </form>
 
           <p className="mt-4 text-center text-[11px] sm:text-sm text-gray-500">
-            {authMode === 'login' ? 'Área restrita para membros autorizados' : 'Já possui conta?'}
-            {authMode === 'signup' && (
-              <button 
-                onClick={() => {
-                  setAuthMode('login');
-                  setAuthError(null);
-                }}
-                className="ml-1 text-blue-600 font-bold hover:underline"
-              >
-                Entrar
-              </button>
-            )}
+            {authMode === 'login' ? 'Não tem conta?' : 'Já possui conta?'}
+            <button 
+              onClick={() => {
+                setAuthMode(authMode === 'login' ? 'signup' : 'login');
+                setAuthError(null);
+              }}
+              className="ml-1 text-blue-600 font-bold hover:underline"
+            >
+              {authMode === 'login' ? 'Cadastre-se' : 'Entrar'}
+            </button>
           </p>
         </motion.div>
       </div>
