@@ -195,7 +195,8 @@ export default function App() {
   const [userAdminCategory, setUserAdminCategory] = useState<'homens' | 'mulheres' | 'jovens' | null>(null);
 
   const currentUserAdminCategory = user?.user_metadata?.admin_category as 'homens' | 'mulheres' | 'jovens' | undefined;
-  const isUserAdmin = !!currentUserAdminCategory;
+  const isUserAdmin = !!currentUserAdminCategory || user?.email === 'javoucarsistema@gmail.com';
+  const effectiveAdminCategory = currentUserAdminCategory || (user?.email === 'javoucarsistema@gmail.com' ? 'homens' : null);
 
   // Visitor form states
   const [showCategoryStep, setShowCategoryStep] = useState(true);
@@ -594,7 +595,7 @@ export default function App() {
               <button 
                 onClick={() => {
                   setView('list');
-                  setReportCategory(currentUserAdminCategory!);
+                  setReportCategory(effectiveAdminCategory as any);
                 }}
                 className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all ${view === 'list' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
               >
@@ -618,7 +619,7 @@ export default function App() {
             <p className="text-[10px] font-black uppercase text-slate-400 mb-1 tracking-widest">Usuário Logado</p>
             <p className="text-xs font-bold text-slate-700 truncate">{user.user_metadata?.display_name || user.email || 'Usuário'}</p>
             <p className="text-[9px] font-black text-blue-500 uppercase mt-1">
-              {isUserAdmin ? `Admin ${currentUserAdminCategory}` : 'Visitador'}
+              {isUserAdmin ? `Admin ${effectiveAdminCategory || ''}` : 'Visitador'}
             </p>
           </div>
           <button 
@@ -1092,7 +1093,7 @@ export default function App() {
                             <div className="flex flex-wrap gap-2">
                               {isUserAdmin ? (
                                 <div className="px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest bg-blue-600 text-white border-2 border-blue-600 shadow-lg shadow-blue-200">
-                                  {currentUserAdminCategory}
+                                  {effectiveAdminCategory}
                                 </div>
                               ) : (
                                 (['homens', 'mulheres', 'jovens'] as const).map((c) => (
@@ -1381,7 +1382,7 @@ export default function App() {
                     <div>
                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Nível</p>
                       <span className="inline-block px-3 py-1 bg-blue-600 rounded-full text-[10px] font-black uppercase tracking-widest mt-1">
-                        Administrador {currentUserAdminCategory}
+                        Administrador {effectiveAdminCategory}
                       </span>
                     </div>
                   </div>
@@ -1414,7 +1415,7 @@ export default function App() {
             <button 
               onClick={() => {
                 setView('list');
-                setReportCategory(currentUserAdminCategory!);
+                setReportCategory(effectiveAdminCategory as any);
               }}
               className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${view === 'list' ? 'text-blue-600' : 'text-slate-400'}`}
             >
