@@ -582,20 +582,13 @@ export default function App() {
               <div className="space-y-3 pt-1 border-t border-gray-100">
                 <div>
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Tipo de Conta</label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2">
                     <button
                       type="button"
                       onClick={() => setUserRole('user')}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold border-2 transition-all ${userRole === 'user' ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'}`}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold border-2 transition-all bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100`}
                     >
                       Visitador
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setUserRole('admin')}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold border-2 transition-all ${userRole === 'admin' ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'}`}
-                    >
-                      Administrador
                     </button>
                   </div>
                 </div>
@@ -1238,16 +1231,19 @@ export default function App() {
                         </div>
                         <div>
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nível de Acesso</label>
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
-                            {[
+                          <div className={`grid gap-2 mt-2 ${user?.email === 'adminnovo@gmail.com' ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-1'}`}>
+                            {(user?.email === 'adminnovo@gmail.com' ? [
                               { id: 'user', label: 'Visitador' },
                               { id: 'homens', label: 'Admin Homem' },
                               { id: 'mulheres', label: 'Admin Mulher' },
                               { id: 'jovens', label: 'Admin Jovem' }
-                            ].map(role => (
+                            ] : [
+                              { id: 'user', label: 'Visitador' }
+                            ]).map(role => (
                               <button
                                 key={role.id}
                                 type="button"
+                                disabled={user?.email !== 'adminnovo@gmail.com' && role.id !== 'user'}
                                 onClick={() => setAdminNewUserCategory(role.id as any)}
                                 className={`py-2 px-1 rounded-xl text-[9px] font-black uppercase tracking-tighter border-2 transition-all ${
                                   adminNewUserCategory === role.id ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
@@ -1309,28 +1305,6 @@ export default function App() {
                         <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Equipe Cadastrada</h3>
                       </div>
                       <div className="flex items-center gap-2">
-                        {isUserAdmin && (user?.email === 'adminnovo@gmail.com' || user?.email === 'javoucarsistema@gmail.com') && (
-                          <button 
-                            onClick={async () => {
-                              if (!window.confirm('Deseja excluir TODOS os usuários da equipe (exceto o master)?')) return;
-                              try {
-                                setProfilesLoading(true);
-                                await userService.deleteAllExceptMaster(['adminnovo@gmail.com']);
-                                fetchProfiles();
-                                setMessage({ type: 'success', text: 'Equipe limpada. Apenas o master foi mantido.' });
-                              } catch (err) {
-                                console.error(err);
-                                setMessage({ type: 'error', text: 'Erro ao limpar. Verifique as regras SQL.' });
-                              } finally {
-                                setProfilesLoading(false);
-                              }
-                            }}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all border border-rose-100"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                            Manter apenas Master
-                          </button>
-                        )}
                         <button 
                           onClick={fetchProfiles}
                           disabled={profilesLoading}
@@ -1388,7 +1362,12 @@ CREATE POLICY "Edição pelo próprio usuário ou Master" ON public.profiles
 CREATE POLICY "Deleção por Master" ON public.profiles
   FOR DELETE USING (
     auth.jwt() ->> 'email' = 'adminnovo@gmail.com'
-  );`}
+  );
+
+-- 5. SCRIPT PARA APAGAR TODOS USUÁRIOS EXCETO MASTER
+-- Execute isto no SQL Editor para limpar usuários:
+-- DELETE FROM auth.users WHERE email != 'adminnovo@gmail.com';
+-- (A tabela public.profiles será limpa automaticamente)`}
                             </pre>
                           </div>
                           <button 
