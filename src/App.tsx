@@ -34,7 +34,7 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 const PDFReportGenerator = (visitors: Visitor[], category: string, period: string) => {
   const doc = new jsPDF();
   
-  const categoryLabel = category === 'homens' ? 'Homens' : category === 'mulheres' ? 'Mulheres' : 'Jovens';
+  const categoryLabel = category === 'todas' ? 'Toda Equipe' : category === 'homens' ? 'Homens' : category === 'mulheres' ? 'Mulheres' : 'Jovens';
   const periodLabel = period === 'all' ? 'Todos' : period === 'weekly' ? 'Últimos 7 dias' : 'Últimos 30 dias';
 
   doc.setFontSize(20);
@@ -147,7 +147,7 @@ export default function App() {
 
   // Report filter states
   const [reportPeriod, setReportPeriod] = useState<'all' | 'weekly' | 'monthly'>('all');
-  const [reportCategory, setReportCategory] = useState<'homens' | 'mulheres' | 'jovens'>('homens');
+  const [reportCategory, setReportCategory] = useState<'homens' | 'mulheres' | 'jovens' | 'todas'>('homens');
 
   // Admin User Management states
   const [adminNewUserEmail, setAdminNewUserEmail] = useState('');
@@ -249,7 +249,7 @@ export default function App() {
 
   const currentUserAdminCategory = currentUserProfile?.admin_category || (user?.user_metadata?.admin_category as 'homens' | 'mulheres' | 'jovens' | undefined);
   const isUserAdmin = !!currentUserAdminCategory || user?.email === 'adminnovo@gmail.com' || currentUserProfile?.role === 'admin';
-  const effectiveAdminCategory = currentUserAdminCategory || (user?.email === 'adminnovo@gmail.com' ? 'homens' : null);
+  const effectiveAdminCategory = currentUserAdminCategory || (user?.email === 'adminnovo@gmail.com' ? 'todas' : null);
 
   // Visitor form states
   const [showCategoryStep, setShowCategoryStep] = useState(true);
@@ -297,7 +297,7 @@ export default function App() {
         // Auto-save current user profile with master admin check
         const isMasterAdmin = session.user.email === 'adminnovo@gmail.com';
         const role = (session.user.user_metadata?.admin_category || isMasterAdmin) ? 'admin' : 'user';
-        const category = session.user.user_metadata?.admin_category || (isMasterAdmin ? 'homens' : null);
+        const category = session.user.user_metadata?.admin_category || null;
 
         userService.upsertProfile({
           id: session.user.id,
@@ -490,7 +490,9 @@ export default function App() {
     let filtered = [...visitors];
 
     // Filter by category
-    filtered = filtered.filter(v => v.category === reportCategory);
+    if (reportCategory !== 'todas') {
+      filtered = filtered.filter(v => v.category === reportCategory);
+    }
 
     // Filter by period
     if (reportPeriod !== 'all') {
@@ -1514,16 +1516,16 @@ CREATE POLICY "Deleção por Master" ON public.profiles
                               <span>Filtrar por Grupo</span>
                             </div>
                             <div className="flex flex-wrap gap-2">
-                              {isUserAdmin ? (
+                              {isUserAdmin && user?.email !== 'adminnovo@gmail.com' ? (
                                 <div className="px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest bg-blue-600 text-white border-2 border-blue-600 shadow-lg shadow-blue-200">
                                   {effectiveAdminCategory}
                                 </div>
                               ) : (
-                                (['homens', 'mulheres', 'jovens'] as const).map((c) => (
+                                (['homens', 'mulheres', 'jovens', 'todas'] as const).map((c) => (
                                   <button
                                     key={c}
                                     onClick={() => setReportCategory(c)}
-                                    className={`px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border-2 ${reportCategory === c ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-200' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200 hover:text-slate-600'}`}
+                                    className={`px-3 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${reportCategory === c ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-200' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200 hover:text-slate-600'}`}
                                   >
                                     {c}
                                   </button>
