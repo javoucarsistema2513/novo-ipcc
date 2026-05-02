@@ -66,7 +66,7 @@ const PDFReportGenerator = (visitors: Visitor[], category: string, period: strin
       v.age || '-',
       v.gender || '-',
       v.birthDate ? new Date(v.birthDate).toLocaleDateString('pt-BR') : '-',
-      v.participatesInCell === 'sim' ? `Sim ${v.cellLeader ? '(' + v.cellLeader + ')' : ''}` : v.participatesInCell === 'nao' ? 'Não' : '-',
+      v.participatesInCell === 'sim' ? `Sim ${v.cellLeader ? '(' + v.cellLeader + ')' : ''}` : v.participatesInCell === 'nao' ? `Não ${v.invitedBy ? '(Conv: ' + v.invitedBy + ')' : ''}` : '-',
       v.isMarriedOrLivesTogether === 'sim' ? 'Sim' : v.isMarriedOrLivesTogether === 'nao' ? 'Não' : '-',
       v.prayerRequest || '-',
       v.address,
@@ -76,11 +76,11 @@ const PDFReportGenerator = (visitors: Visitor[], category: string, period: strin
   
   autoTable(doc, {
     startY: 35,
-    head: [['#', 'Nome', 'Telefone', 'Grupo', 'Idade', 'Sexo', 'Nasc.', 'Célula', 'Mora Junto', 'Algum pedido de Oração?', 'Endereço', 'Data']],
+    head: [['#', 'Nome', 'Telefone', 'Grupo', 'Idade', 'Sexo', 'Nasc.', 'Célula/Convidado', 'Mora Junto', 'Pedido Oração', 'Endereço', 'Data']],
     body: tableData,
     theme: 'striped',
     headStyles: { fillColor: [30, 58, 138] },
-    styles: { fontSize: 8 }
+    styles: { fontSize: 7 }
   });
   
   doc.save(`relatorio-${category}-${period}.pdf`);
@@ -109,7 +109,7 @@ const CSVReportGenerator = (visitors: Visitor[], category: string, period: strin
       v.age || '',
       v.gender || '',
       v.birthDate || '',
-      v.participatesInCell === 'sim' ? `Sim ${v.cellLeader ? '(' + v.cellLeader + ')' : ''}` : v.participatesInCell || '',
+      v.participatesInCell === 'sim' ? `Sim ${v.cellLeader ? '(' + v.cellLeader + ')' : ''}` : (v.participatesInCell === 'nao' ? `Não ${v.invitedBy ? '(Conv: ' + v.invitedBy + ')' : ''}` : v.participatesInCell || ''),
       v.isMarriedOrLivesTogether || '',
       v.prayerRequest ? v.prayerRequest.replace(/,/g, ';').replace(/\n/g, ' ') : '',
       v.address.replace(/,/g, ';'),
@@ -265,6 +265,7 @@ export default function App() {
     category?: 'homens' | 'mulheres' | 'jovens';
     isMarriedOrLivesTogether: string;
     prayerRequest: string;
+    invitedBy: string;
   }>({
     name: '',
     phone: '',
@@ -276,7 +277,8 @@ export default function App() {
     cellLeader: '',
     category: undefined,
     isMarriedOrLivesTogether: '',
-    prayerRequest: ''
+    prayerRequest: '',
+    invitedBy: ''
   });
 
   useEffect(() => {
@@ -437,6 +439,7 @@ export default function App() {
       birthDate: visitor.birthDate || '',
       participatesInCell: visitor.participatesInCell || '',
       cellLeader: visitor.cellLeader || '',
+      invitedBy: visitor.invitedBy || '',
       category: visitor.category,
       isMarriedOrLivesTogether: visitor.isMarriedOrLivesTogether || '',
       prayerRequest: visitor.prayerRequest || ''
@@ -449,7 +452,7 @@ export default function App() {
   const handleCancelEdit = () => {
     setEditingId(null);
     setShowCategoryStep(true);
-    setFormData({ name: '', phone: '', address: '', age: '', gender: '', birthDate: '', participatesInCell: '', cellLeader: '', category: undefined, isMarriedOrLivesTogether: '', prayerRequest: '' });
+    setFormData({ name: '', phone: '', address: '', age: '', gender: '', birthDate: '', participatesInCell: '', cellLeader: '', category: undefined, isMarriedOrLivesTogether: '', prayerRequest: '', invitedBy: '' });
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
@@ -471,7 +474,7 @@ export default function App() {
         setMessage({ type: 'success', text: 'Visitante cadastrado com sucesso!' });
       }
 
-      setFormData({ name: '', phone: '', address: '', age: '', gender: '', birthDate: '', participatesInCell: '', cellLeader: '', category: undefined, isMarriedOrLivesTogether: '', prayerRequest: '' });
+      setFormData({ name: '', phone: '', address: '', age: '', gender: '', birthDate: '', participatesInCell: '', cellLeader: '', category: undefined, isMarriedOrLivesTogether: '', prayerRequest: '', invitedBy: '' });
       setEditingId(null);
       setShowCategoryStep(true);
       fetchVisitors();
@@ -1032,7 +1035,7 @@ export default function App() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => setFormData({...formData, participatesInCell: 'nao', cellLeader: ''})}
+                              onClick={() => setFormData({...formData, participatesInCell: 'nao', cellLeader: '', invitedBy: ''})}
                               className={`flex-1 h-12 sm:h-14 rounded-2xl font-bold transition-all border-2 ${formData.participatesInCell === 'nao' ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'}`}
                             >
                               Não
@@ -1056,6 +1059,26 @@ export default function App() {
                                   value={formData.cellLeader}
                                   onChange={(e) => setFormData({...formData, cellLeader: e.target.value})}
                                   placeholder="Nome do líder da célula"
+                                  className="input-field pl-10 sm:pl-12 h-12 sm:h-14 text-sm sm:text-base"
+                                />
+                              </div>
+                            </motion.div>
+                          )}
+                          {formData.participatesInCell === 'nao' && (
+                            <motion.div 
+                              initial={{ opacity: 0, height: 0, marginTop: -20 }}
+                              animate={{ opacity: 1, height: 'auto', marginTop: 0 }}
+                              exit={{ opacity: 0, height: 0, marginTop: -20 }}
+                              className="space-y-1 sm:space-y-2 overflow-hidden"
+                            >
+                              <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">foi convidado por alguém?</label>
+                              <div className="relative">
+                                <UserPlus className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4 sm:w-5 sm:h-5" />
+                                <input 
+                                  type="text" 
+                                  value={formData.invitedBy}
+                                  onChange={(e) => setFormData({...formData, invitedBy: e.target.value})}
+                                  placeholder="Nome de quem convidou"
                                   className="input-field pl-10 sm:pl-12 h-12 sm:h-14 text-sm sm:text-base"
                                 />
                               </div>

@@ -11,6 +11,7 @@ export interface Visitor {
   category?: 'homens' | 'mulheres' | 'jovens';
   isMarriedOrLivesTogether?: string;
   prayerRequest?: string;
+  invitedBy?: string;
   createdAt: any; // ServerTimestamp
   createdBy: string;
 }

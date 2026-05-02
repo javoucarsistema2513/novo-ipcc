@@ -36,6 +36,7 @@ export const visitorService = {
             category: visitorData.category,
             is_married_or_lives_together: visitorData.isMarriedOrLivesTogether,
             prayer_request: visitorData.prayerRequest,
+            invited_by: visitorData.invitedBy,
             created_by: finalUserId,
           }
         ])
@@ -56,6 +57,7 @@ export const visitorService = {
         category: data.category,
         isMarriedOrLivesTogether: data.is_married_or_lives_together,
         prayerRequest: data.prayer_request,
+        invitedBy: data.invited_by,
         createdAt: { seconds: new Date(data.created_at).getTime() / 1000 },
         createdBy: data.created_by
       } as Visitor;
@@ -88,6 +90,7 @@ export const visitorService = {
         category: v.category,
         isMarriedOrLivesTogether: v.is_married_or_lives_together,
         prayerRequest: v.prayer_request,
+        invitedBy: v.invited_by,
         createdAt: { seconds: new Date(v.created_at).getTime() / 1000 },
         createdBy: v.created_by
       })) as Visitor[];
@@ -128,6 +131,7 @@ export const visitorService = {
           category: visitorData.category,
           is_married_or_lives_together: visitorData.isMarriedOrLivesTogether,
           prayer_request: visitorData.prayerRequest,
+          invited_by: visitorData.invitedBy,
         })
         .eq('id', id)
         .select()
@@ -148,6 +152,7 @@ export const visitorService = {
           category: data.category,
           isMarriedOrLivesTogether: data.is_married_or_lives_together,
           prayerRequest: data.prayer_request,
+          invitedBy: data.invited_by,
           createdAt: { seconds: new Date(data.created_at).getTime() / 1000 },
           createdBy: data.created_by
         } as Visitor
