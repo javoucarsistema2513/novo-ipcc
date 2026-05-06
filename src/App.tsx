@@ -58,14 +58,16 @@ const PDFReportGenerator = (visitors: Visitor[], category: string, period: strin
       console.error('Error parsing date:', e);
     }
 
+    const visitorAge = v.age || (v.birthDate ? calculateAge(v.birthDate) : '-');
+
     return [
       i + 1,
       v.name,
       v.phone,
       v.category ? v.category.charAt(0).toUpperCase() + v.category.slice(1) : '-',
-      v.age || '-',
+      visitorAge,
       v.gender || '-',
-      v.birthDate ? new Date(v.birthDate).toLocaleDateString('pt-BR') : '-',
+      v.birthDate || '-',
       v.participatesInCell === 'sim' ? `Sim ${v.cellLeader ? '(' + v.cellLeader + ')' : ''}` : v.participatesInCell === 'nao' ? `Não ${v.invitedBy ? '(Conv: ' + v.invitedBy + ')' : ''}` : '-',
       v.isMarriedOrLivesTogether === 'sim' ? 'Sim' : v.isMarriedOrLivesTogether === 'nao' ? 'Não' : '-',
       v.prayerRequest || '-',
@@ -76,7 +78,7 @@ const PDFReportGenerator = (visitors: Visitor[], category: string, period: strin
   
   autoTable(doc, {
     startY: 35,
-    head: [['#', 'Nome', 'Telefone', 'Grupo', 'Idade', 'Sexo', 'Nasc.', 'Célula/Convidado', 'Mora Junto', 'Pedido Oração', 'Endereço', 'Data']],
+    head: [['#', 'Nome', 'Telefone', 'Grupo', 'Idade', 'Sexo', 'Nasc.', 'Célula/Convidado', 'Mora Junto', 'Pedido Oração', 'Endereço', 'Data de Reg.']],
     body: tableData,
     theme: 'striped',
     headStyles: { fillColor: [30, 58, 138] },
@@ -86,8 +88,25 @@ const PDFReportGenerator = (visitors: Visitor[], category: string, period: strin
   doc.save(`relatorio-${category}-${period}.pdf`);
 };
 
+const calculateAge = (birthDate: string) => {
+  if (!birthDate || !birthDate.includes('/')) return '-';
+  const parts = birthDate.split('/');
+  if (parts.length !== 3) return '-';
+  const [day, month, year] = parts.map(Number);
+  if (!day || !month || !year || year < 1000) return '-';
+  
+  const today = new Date();
+  const birth = new Date(year, month - 1, day);
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age >= 0 ? age.toString() : '-';
+};
+
 const CSVReportGenerator = (visitors: Visitor[], category: string, period: string) => {
-  const headers = ['Nome', 'Telefone', 'Grupo', 'Idade', 'Sexo', 'Data de Nascimento', 'Participa de Célula', 'Mora Junto/Casado', 'Algum pedido de Oração?', 'Endereço', 'Data de Cadastro'];
+  const headers = ['Nome', 'Telefone', 'Grupo', 'Idade', 'Sexo', 'Data de Nascimento', 'Participa de Célula', 'Mora Junto/Casado', 'Algum pedido de Oração?', 'Endereço', 'Data de Reg.'];
   const rows = visitors.map(v => {
     let dateStr = '';
     try {
@@ -102,11 +121,13 @@ const CSVReportGenerator = (visitors: Visitor[], category: string, period: strin
       console.error('Error parsing date:', e);
     }
 
+    const visitorAge = v.age || (v.birthDate ? calculateAge(v.birthDate) : '');
+
     return [
       v.name,
       v.phone,
       v.category || '',
-      v.age || '',
+      visitorAge,
       v.gender || '',
       v.birthDate || '',
       v.participatesInCell === 'sim' ? `Sim ${v.cellLeader ? '(' + v.cellLeader + ')' : ''}` : (v.participatesInCell === 'nao' ? `Não ${v.invitedBy ? '(Conv: ' + v.invitedBy + ')' : ''}` : v.participatesInCell || ''),
@@ -429,6 +450,14 @@ export default function App() {
   };
 
   const handleEditVisitor = (visitor: Visitor) => {
+    let bDate = visitor.birthDate || '';
+    if (bDate && bDate.includes('-')) {
+      const [y, m, d] = bDate.split('-');
+      if (y && y.length === 4) {
+        bDate = `${d}/${m}/${y}`;
+      }
+    }
+
     setEditingId(visitor.id || null);
     setFormData({
       name: visitor.name,
@@ -436,7 +465,7 @@ export default function App() {
       address: visitor.address,
       age: visitor.age?.toString() || '',
       gender: visitor.gender || '',
-      birthDate: visitor.birthDate || '',
+      birthDate: bDate,
       participatesInCell: visitor.participatesInCell || '',
       cellLeader: visitor.cellLeader || '',
       invitedBy: visitor.invitedBy || '',
@@ -976,27 +1005,24 @@ export default function App() {
                       </div>
 
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-6">
-                        <div className="space-y-1 sm:space-y-2">
+                        <div className="space-y-1 sm:space-y-2 col-span-2 sm:col-span-1">
                           <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Data de Nasc.</label>
                           <div className="relative">
                             <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4 sm:w-5 sm:h-5" />
                             <input 
-                              type="date" 
+                              type="text" 
                               value={formData.birthDate}
-                              onChange={(e) => setFormData({...formData, birthDate: e.target.value})}
-                              className="input-field pl-10 sm:pl-12 h-12 sm:h-14 text-sm sm:text-base"
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-1 sm:space-y-2">
-                          <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Idade</label>
-                          <div className="relative">
-                            <Baby className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4 sm:w-5 sm:h-5" />
-                            <input 
-                              type="number" 
-                              value={formData.age}
-                              onChange={(e) => setFormData({...formData, age: e.target.value})}
-                              placeholder="00"
+                              onChange={(e) => {
+                                let val = e.target.value.replace(/\D/g, '');
+                                if (val.length > 8) val = val.slice(0, 8);
+                                if (val.length >= 5) {
+                                  val = `${val.slice(0, 2)}/${val.slice(2, 4)}/${val.slice(4)}`;
+                                } else if (val.length >= 3) {
+                                  val = `${val.slice(0, 2)}/${val.slice(2)}`;
+                                }
+                                setFormData({...formData, birthDate: val});
+                              }}
+                              placeholder="DD/MM/AAAA"
                               className="input-field pl-10 sm:pl-12 h-12 sm:h-14 text-sm sm:text-base"
                             />
                           </div>
@@ -1117,18 +1143,6 @@ export default function App() {
                             onChange={(e) => setFormData({...formData, prayerRequest: e.target.value})}
                             placeholder="Escreva aqui o pedido de oração se houver..."
                             className="input-field pl-10 sm:pl-12 pt-3 sm:pt-4 resize-none text-sm sm:text-base"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                        <div className="space-y-1 sm:space-y-2">
-                          <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Data Efetiva</label>
-                          <input 
-                            disabled
-                            type="text" 
-                            className="input-field bg-slate-50 text-slate-500 font-bold h-12 sm:h-14 cursor-not-allowed text-sm sm:text-base"
-                            value={new Date().toLocaleDateString('pt-BR')}
                           />
                         </div>
                       </div>
