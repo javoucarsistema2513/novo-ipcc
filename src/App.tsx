@@ -209,7 +209,14 @@ export default function App() {
         body: JSON.stringify({ userId })
       });
 
-      const result = await response.json();
+      let result;
+      const text = await response.text();
+      try {
+        result = text ? JSON.parse(text) : {};
+      } catch (e) {
+        throw new Error(`Resposta inválida do servidor (${response.status}): ${text.substring(0, 100)}`);
+      }
+
       if (!response.ok && !result.error?.includes("User not found")) {
         throw new Error(result.error || "Erro ao remover conta de acesso.");
       }
@@ -253,7 +260,14 @@ export default function App() {
         body: JSON.stringify({ email: email.trim() })
       });
 
-      const result = await response.json();
+      let result;
+      const text = await response.text();
+      try {
+        result = text ? JSON.parse(text) : {};
+      } catch (e) {
+        throw new Error(`Resposta inválida do servidor (${response.status}): ${text.substring(0, 100)}`);
+      }
+
       if (!response.ok) throw new Error(result.error || "Erro ao remover conta.");
 
       alert(result.message || "Conta removida com sucesso!");

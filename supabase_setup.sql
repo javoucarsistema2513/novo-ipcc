@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS visitors (
   birth_date DATE,
   invited_by TEXT, -- Novo campo: Quem fez o convite
   participates_in_cell TEXT,
+  cell_leader TEXT,
+  category TEXT,
   is_married_or_lives_together TEXT,
   prayer_request TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -38,6 +40,14 @@ BEGIN
 
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='participates_in_cell') THEN
     ALTER TABLE visitors ADD COLUMN participates_in_cell TEXT;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='cell_leader') THEN
+    ALTER TABLE visitors ADD COLUMN cell_leader TEXT;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='category') THEN
+    ALTER TABLE visitors ADD COLUMN category TEXT;
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='is_married_or_lives_together') THEN
