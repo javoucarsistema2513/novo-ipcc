@@ -25,7 +25,8 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { supabase } from './lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './lib/supabase';
 import { visitorService } from './services/visitorService';
 import { userService, UserProfile } from './services/userService';
 import { Visitor } from './types';
@@ -207,6 +208,16 @@ export default function App() {
     setAdminCreateLoading(true);
     setAdminCreateMessage(null);
     try {
+      // Create a temporary client that doesn't persist the session
+      // This prevents the admin from being logged out when creating a new user
+      const tempClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false
+        }
+      });
+
       if (editingProfileId) {
         await userService.updateProfile(editingProfileId, {
           display_name: adminNewUserDisplayName,
@@ -219,7 +230,7 @@ export default function App() {
         });
         setEditingProfileId(null);
       } else {
-        const { data, error } = await supabase.auth.signUp({
+        const { data, error } = await tempClient.auth.signUp({
           email: adminNewUserEmail,
           password: adminNewUserPassword,
           options: {
@@ -385,7 +396,15 @@ export default function App() {
     setAuthError(null);
     try {
       if (authMode === 'signup') {
-        const { data, error } = await supabase.auth.signUp({
+        const tempClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+            detectSessionInUrl: false
+          }
+        });
+
+        const { data, error } = await tempClient.auth.signUp({
           email,
           password,
           options: {
