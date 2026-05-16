@@ -27,23 +27,31 @@ export const visitorService = {
           {
             name: visitorData.name,
             phone: visitorData.phone,
-            address: visitorData.address,
-            age: visitorData.age || null,
-            gender: visitorData.gender,
-            birth_date: visitorData.birthDate || null,
-            participates_in_cell: visitorData.participatesInCell,
-            cell_leader: visitorData.cellLeader,
-            category: visitorData.category,
-            is_married_or_lives_together: visitorData.isMarriedOrLivesTogether,
-            prayer_request: visitorData.prayerRequest,
-            invited_by: visitorData.invitedBy,
+            address: visitorData.address || '',
+            age: (visitorData.age && !isNaN(visitorData.age)) ? visitorData.age : null,
+            gender: visitorData.gender || null,
+            birth_date: (visitorData.birthDate && visitorData.birthDate.length === 10) ? visitorData.birthDate : null,
+            participates_in_cell: visitorData.participatesInCell || null,
+            cell_leader: visitorData.cellLeader || null,
+            category: visitorData.category || null,
+            is_married_or_lives_together: visitorData.isMarriedOrLivesTogether || null,
+            prayer_request: visitorData.prayerRequest || null,
+            invited_by: visitorData.invitedBy || null,
             created_by: finalUserId,
           }
         ])
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase Insert Detailed Error:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        throw error;
+      }
       return {
         id: data.id,
         name: data.name,
@@ -122,16 +130,16 @@ export const visitorService = {
         .update({
           name: visitorData.name,
           phone: visitorData.phone,
-          address: visitorData.address,
-          age: visitorData.age || null,
-          gender: visitorData.gender,
-          birth_date: visitorData.birthDate || null,
-          participates_in_cell: visitorData.participatesInCell,
-          cell_leader: visitorData.cellLeader,
-          category: visitorData.category,
-          is_married_or_lives_together: visitorData.isMarriedOrLivesTogether,
-          prayer_request: visitorData.prayerRequest,
-          invited_by: visitorData.invitedBy,
+          address: visitorData.address || '',
+          age: (visitorData.age && !isNaN(visitorData.age)) ? visitorData.age : null,
+          gender: visitorData.gender || null,
+          birth_date: (visitorData.birthDate && visitorData.birthDate.length === 10) ? visitorData.birthDate : null,
+          participates_in_cell: visitorData.participatesInCell || null,
+          cell_leader: visitorData.cellLeader || null,
+          category: visitorData.category || null,
+          is_married_or_lives_together: visitorData.isMarriedOrLivesTogether || null,
+          prayer_request: visitorData.prayerRequest || null,
+          invited_by: visitorData.invitedBy || null,
         })
         .eq('id', id)
         .select()

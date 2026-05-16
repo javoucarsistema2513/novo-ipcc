@@ -651,8 +651,15 @@ export default function App() {
     setMessage(null);
 
     try {
+      let bDate = formData.birthDate;
+      if (bDate && bDate.includes('/') && bDate.length === 10) {
+        const [d, m, y] = bDate.split('/');
+        bDate = `${y}-${m}-${d}`;
+      }
+
       const visitorData = {
         ...formData,
+        birthDate: bDate || undefined,
         age: formData.age ? parseInt(formData.age) : undefined
       };
 

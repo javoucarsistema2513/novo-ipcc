@@ -1,15 +1,16 @@
--- Script para configurar o banco de dados no Supabase (SQL Editor)
+-- SCRIPT COMPLETO PARA O SUPABASE (SQL EDITOR)
+-- Copie e cole todo este código no SQL Editor do seu projeto Supabase e clique em 'Run'
 
--- 1. Criar a tabela se não existir
-CREATE TABLE IF NOT EXISTS visitors (
+-- 1. Criar a tabela se não existir (ou atualizar se houver novos campos)
+CREATE TABLE IF NOT EXISTS public.visitors (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
   phone TEXT NOT NULL,
-  address TEXT NOT NULL,
+  address TEXT,
   age INTEGER,
   gender TEXT,
   birth_date DATE,
-  invited_by TEXT, -- Novo campo: Quem fez o convite
+  invited_by TEXT,
   participates_in_cell TEXT,
   cell_leader TEXT,
   category TEXT,
@@ -19,65 +20,57 @@ CREATE TABLE IF NOT EXISTS visitors (
   created_by UUID REFERENCES auth.users(id) NOT NULL
 );
 
--- 2. Adicionar a coluna caso a tabela já exista (prevenção de erro 42P07)
+-- 2. Garantir que todas as colunas existem (caso a tabela já tenha sido criada antes)
 DO $$ 
 BEGIN 
+  -- Lista de colunas para verificar/adicionar
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='invited_by') THEN
-    ALTER TABLE visitors ADD COLUMN invited_by TEXT;
+    ALTER TABLE public.visitors ADD COLUMN invited_by TEXT;
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='age') THEN
-    ALTER TABLE visitors ADD COLUMN age INTEGER;
+    ALTER TABLE public.visitors ADD COLUMN age INTEGER;
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='gender') THEN
-    ALTER TABLE visitors ADD COLUMN gender TEXT;
+    ALTER TABLE public.visitors ADD COLUMN gender TEXT;
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='birth_date') THEN
-    ALTER TABLE visitors ADD COLUMN birth_date DATE;
+    ALTER TABLE public.visitors ADD COLUMN birth_date DATE;
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='participates_in_cell') THEN
-    ALTER TABLE visitors ADD COLUMN participates_in_cell TEXT;
+    ALTER TABLE public.visitors ADD COLUMN participates_in_cell TEXT;
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='cell_leader') THEN
-    ALTER TABLE visitors ADD COLUMN cell_leader TEXT;
+    ALTER TABLE public.visitors ADD COLUMN cell_leader TEXT;
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='category') THEN
-    ALTER TABLE visitors ADD COLUMN category TEXT;
+    ALTER TABLE public.visitors ADD COLUMN category TEXT;
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='is_married_or_lives_together') THEN
-    ALTER TABLE visitors ADD COLUMN is_married_or_lives_together TEXT;
+    ALTER TABLE public.visitors ADD COLUMN is_married_or_lives_together TEXT;
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='visitors' AND column_name='prayer_request') THEN
-    ALTER TABLE visitors ADD COLUMN prayer_request TEXT;
+    ALTER TABLE public.visitors ADD COLUMN prayer_request TEXT;
   END IF;
 END $$;
 
--- 3. Ativar RLS (Segurança em nível de linha)
-ALTER TABLE visitors ENABLE ROW LEVEL SECURITY;
+-- 3. Habilitar Segurança (RLS)
+ALTER TABLE public.visitors ENABLE ROW LEVEL SECURITY;
 
--- 4. Políticas de Segurança (Cria apenas se não existirem)
-DO $$ 
-BEGIN 
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Permitir leitura para usuários autenticados') THEN
-        CREATE POLICY "Permitir leitura para usuários autenticados" ON visitors FOR SELECT TO authenticated USING (true);
-    END IF;
-    
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Permitir inserção para usuários autenticados') THEN
-        CREATE POLICY "Permitir inserção para usuários autenticados" ON visitors FOR INSERT TO authenticated WITH CHECK (auth.uid() = created_by);
-    END IF;
+-- 4. Criar as Políticas de Acesso
+DROP POLICY IF EXISTS "Permitir leitura para usuários autenticados" ON visitors;
+DROP POLICY IF EXISTS "Permitir inserção para usuários autenticados" ON visitors;
+DROP POLICY IF EXISTS "Permitir deleção para quem criou" ON visitors;
+DROP POLICY IF EXISTS "Permitir atualização para quem criou" ON visitors;
 
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Permitir deleção para quem criou') THEN
-        CREATE POLICY "Permitir deleção para quem criou" ON visitors FOR DELETE TO authenticated USING (auth.uid() = created_by);
-    END IF;
-
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Permitir atualização para quem criou') THEN
-        CREATE POLICY "Permitir atualização para quem criou" ON visitors FOR UPDATE TO authenticated USING (auth.uid() = created_by) WITH CHECK (auth.uid() = created_by);
-    END IF;
-END $$;
+CREATE POLICY "Permitir leitura para usuários autenticados" ON visitors FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Permitir inserção para usuários autenticados" ON visitors FOR INSERT TO authenticated WITH CHECK (auth.uid() = created_by);
+CREATE POLICY "Permitir deleção para quem criou" ON visitors FOR DELETE TO authenticated USING (auth.uid() = created_by);
+CREATE POLICY "Permitir atualização para quem criou" ON visitors FOR UPDATE TO authenticated USING (auth.uid() = created_by) WITH CHECK (auth.uid() = created_by);
