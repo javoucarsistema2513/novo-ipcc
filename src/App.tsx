@@ -22,7 +22,8 @@ import {
   ChevronRight,
   Sparkles,
   Users,
-  RefreshCw
+  RefreshCw,
+  Key
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { createClient } from '@supabase/supabase-js';
@@ -183,6 +184,122 @@ export default function App() {
   const [profilesError, setProfilesError] = useState<string | null>(null);
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
   const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile | null>(null);
+  const [isChangingPassword, setIsChangingPassword] = useState<string | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState<string | null>(null);
+
+  const handleAdminDeleteUser = async (userId: string, email: string) => {
+    if (!window.confirm(`Tem certeza que deseja excluir PERMANENTEMENTE o usuário ${email}? Esta ação removerá o acesso dele ao sistema e não pode ser desfeita.`)) {
+      return;
+    }
+
+    setIsDeletingUser(userId);
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+
+      if (!token) throw new Error("Sessão não encontrada.");
+
+      // First delete from auth via our API
+      const response = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ userId })
+      });
+
+      const result = await response.json();
+      if (!response.ok && !result.error?.includes("User not found")) {
+        throw new Error(result.error || "Erro ao remover conta de acesso.");
+      }
+
+      // Then delete the profile from DB
+      await userService.deleteProfile(userId);
+      
+      alert(`Usuário ${email} removido com sucesso.`);
+      fetchProfiles();
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Erro ao excluir usuário.");
+    } finally {
+      setIsDeletingUser(null);
+    }
+  };
+
+  const handleAdminDeleteByEmail = async () => {
+    const email = window.prompt("Digite o E-MAIL exato que deseja remover do Supabase Auth:");
+    if (!email || !email.includes('@')) {
+      if (email) alert("E-mail inválido.");
+      return;
+    }
+
+    if (!window.confirm(`ATENÇÃO: Você está prestes a remover o acesso de ${email} DIRETAMENTE do Supabase. Use isso apenas para contas "presas" que não aparecem na lista. Continuar?`)) {
+      return;
+    }
+
+    setAdminCreateLoading(true);
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      if (!token) throw new Error("Sessão não encontrada.");
+
+      const response = await fetch('/api/admin/delete-user-by-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ email: email.trim() })
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Erro ao remover conta.");
+
+      alert(result.message || "Conta removida com sucesso!");
+      fetchProfiles();
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Erro ao excluir usuário.");
+    } finally {
+      setAdminCreateLoading(false);
+    }
+  };
+
+  const handleAdminChangePassword = async (userId: string) => {
+    const newPassword = window.prompt("Digite a nova senha para este usuário:");
+    if (!newPassword || newPassword.length < 6) {
+      if (newPassword) alert("A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    setIsChangingPassword(userId);
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+
+      if (!token) throw new Error("Sessão não encontrada. Faça login novamente.");
+
+      const response = await fetch('/api/admin/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ userId, newPassword })
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Erro ao alterar senha.");
+
+      alert("Senha alterada com sucesso!");
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Erro ao conectar com o servidor.");
+    } finally {
+      setIsChangingPassword(null);
+    }
+  };
 
   const fetchProfiles = async () => {
     setProfilesLoading(true);
@@ -1361,6 +1478,16 @@ export default function App() {
                         <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Equipe Cadastrada</h3>
                       </div>
                       <div className="flex items-center gap-2">
+                        {user?.email === 'adminnovo@gmail.com' && (
+                          <button 
+                            onClick={handleAdminDeleteByEmail}
+                            className="mr-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold rounded-xl transition-all flex items-center gap-2"
+                            title="Remover conta presa do Supabase (por e-mail)"
+                          >
+                            <Sparkles className="w-3 h-3 text-amber-500" />
+                            Limpeza Manual Auth
+                          </button>
+                        )}
                         <button 
                           onClick={fetchProfiles}
                           disabled={profilesLoading}
@@ -1486,6 +1613,16 @@ CREATE POLICY "Deleção por Master" ON public.profiles
                                 </td>
                                 <td className="py-4 px-2 text-right">
                                   <div className="flex items-center justify-end gap-2">
+                                    {user?.email === 'adminnovo@gmail.com' && (
+                                      <button 
+                                        onClick={() => handleAdminChangePassword(p.id!)}
+                                        disabled={isChangingPassword === p.id}
+                                        className="p-2 text-amber-300 hover:text-amber-500 hover:bg-amber-50 rounded-xl transition-all disabled:opacity-50"
+                                        title="Alterar senha do usuário"
+                                      >
+                                        {isChangingPassword === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
+                                      </button>
+                                    )}
                                     <button 
                                       onClick={() => handleEditProfile(p)}
                                       className="p-2 text-blue-300 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
@@ -1494,11 +1631,18 @@ CREATE POLICY "Deleção por Master" ON public.profiles
                                       <Pencil className="w-4 h-4" />
                                     </button>
                                     <button 
-                                      onClick={() => handleDeleteUser(p.id!)}
-                                      className="p-2 text-rose-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
-                                      title="Remover usuário da lista"
+                                      onClick={() => {
+                                        if (user?.email === 'adminnovo@gmail.com') {
+                                          handleAdminDeleteUser(p.id!, p.email);
+                                        } else {
+                                          handleDeleteUser(p.id!);
+                                        }
+                                      }}
+                                      disabled={isDeletingUser === p.id}
+                                      className="p-2 text-rose-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all disabled:opacity-50"
+                                      title={user?.email === 'adminnovo@gmail.com' ? "Excluir conta permanentemente" : "Remover usuário da lista"}
                                     >
-                                      <Trash2 className="w-4 h-4" />
+                                      {isDeletingUser === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                                     </button>
                                   </div>
                                 </td>
