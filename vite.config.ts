@@ -21,17 +21,17 @@ export default defineConfig(({mode}) => {
           display: 'standalone',
           icons: [
             {
-              src: 'https://cdn-icons-png.flaticon.com/512/2991/2991148.png',
+              src: 'https://cdn-icons-png.flaticon.com/512/1177/1177577.png',
               sizes: '192x192',
               type: 'image/png'
             },
             {
-              src: 'https://cdn-icons-png.flaticon.com/512/2991/2991148.png',
+              src: 'https://cdn-icons-png.flaticon.com/512/1177/1177577.png',
               sizes: '512x512',
               type: 'image/png'
             },
             {
-              src: 'https://cdn-icons-png.flaticon.com/512/2991/2991148.png',
+              src: 'https://cdn-icons-png.flaticon.com/512/1177/1177577.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable'
