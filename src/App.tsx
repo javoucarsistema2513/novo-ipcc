@@ -178,6 +178,193 @@ const getSharedVisitorData = (): any | null => {
   }
 };
 
+const downloadVisitorWord = (visitor: any, observation: string) => {
+  const dateStr = visitor.createdAt 
+    ? new Date(typeof visitor.createdAt === 'object' && visitor.createdAt.seconds ? visitor.createdAt.seconds * 1000 : visitor.createdAt).toLocaleDateString('pt-BR')
+    : 'Não informada';
+
+  const categoryName = visitor.category 
+    ? visitor.category.charAt(0).toUpperCase() + visitor.category.slice(1)
+    : 'Não informada';
+
+  let htmlContent = `
+    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+    <head>
+      <meta charset="utf-8">
+      <title>Ficha de Visitante - ${visitor.name}</title>
+      <style>
+        body {
+          font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
+          color: #1e293b;
+          line-height: 1.5;
+        }
+        .header {
+          text-align: center;
+          margin-bottom: 30px;
+          border-bottom: 3px double #1e3a8a;
+          padding-bottom: 15px;
+        }
+        .church-title {
+          font-size: 22pt;
+          font-weight: bold;
+          color: #1e3a8a;
+          text-transform: uppercase;
+          margin: 0;
+        }
+        .subtitle {
+          font-size: 11pt;
+          color: #64748b;
+          margin: 5px 0 0 0;
+        }
+        .title {
+          font-size: 15pt;
+          font-weight: bold;
+          color: #0f172a;
+          text-transform: uppercase;
+          margin: 25px 0 10px 0;
+          border-bottom: 1.5px solid #cbd5e1;
+          padding-bottom: 5px;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 15px;
+          margin-bottom: 15px;
+        }
+        th, td {
+          border: 1px solid #cbd5e1;
+          padding: 10px;
+          text-align: left;
+          font-size: 11pt;
+          vertical-align: middle;
+        }
+        th {
+          background-color: #f8fafc;
+          font-weight: bold;
+          color: #334155;
+          width: 30%;
+        }
+        .obs-container {
+          border: 2px solid #2563eb;
+          background-color: #eff6ff;
+          padding: 15px;
+          margin-top: 25px;
+          border-radius: 8px;
+        }
+        .obs-title {
+          font-weight: bold;
+          color: #1d4ed8;
+          text-transform: uppercase;
+          font-size: 11pt;
+          margin-bottom: 8px;
+        }
+        .footer {
+          margin-top: 50px;
+          font-size: 9pt;
+          color: #94a3b8;
+          text-align: center;
+          border-top: 1px solid #e2e8f0;
+          padding-top: 15px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1 class="church-title">Ficha de Visitante</h1>
+        <p class="subtitle">Igreja Presbiteriana (IP IPCC) - Sistema de Gestão de Visitantes</p>
+      </div>
+
+      <h2 class="title">Informações Pessoais</h2>
+      <table>
+        <tr>
+          <th>Nome</th>
+          <td><strong>${visitor.name.toUpperCase()}</strong></td>
+        </tr>
+        <tr>
+          <th>Grupo de Interesse</th>
+          <td><span style="color: #2563eb; font-weight: bold;">${categoryName}</span></td>
+        </tr>
+        <tr>
+          <th>Telefone</th>
+          <td>${visitor.phone}</td>
+        </tr>
+        <tr>
+          <th>Data de Nascimento</th>
+          <td>${visitor.birthDate || 'Não informada'}</td>
+        </tr>
+        <tr>
+          <th>Gênero</th>
+          <td>${visitor.gender || 'Não informado'}</td>
+        </tr>
+        <tr>
+          <th>Idade aproximada</th>
+          <td>${visitor.age || 'Não informada'} anos</td>
+        </tr>
+        <tr>
+          <th>Estado Civil / Mora Junto</th>
+          <td>${visitor.isMarriedOrLivesTogether || 'Não informado'}</td>
+        </tr>
+      </table>
+
+      <h2 class="title font-bold">Vida Religiosa & Integração</h2>
+      <table>
+        <tr>
+          <th>Participa de Célula?</th>
+          <td>${visitor.participatesInCell === 'sim' ? 'Sim' : 'Não'}</td>
+        </tr>
+        ${visitor.participatesInCell === 'sim' && visitor.cellLeader ? `
+        <tr>
+          <th>Nome do Líder</th>
+          <td>${visitor.cellLeader}</td>
+        </tr>
+        ` : ''}
+        <tr>
+          <th>Convidado por</th>
+          <td>${visitor.invitedBy || 'Chegou voluntariamente / Ninguém'}</td>
+        </tr>
+        <tr>
+          <th>Endereço Completo</th>
+          <td>${visitor.address || 'Não informado'}</td>
+        </tr>
+        ${visitor.prayerRequest ? `
+        <tr>
+          <th>Pedido de Oração</th>
+          <td><em>"${visitor.prayerRequest}"</em></td>
+        </tr>
+        ` : ''}
+        <tr>
+          <th>Data do Cadastro</th>
+          <td>${dateStr}</td>
+        </tr>
+      </table>
+
+      ${observation ? `
+      <div class="obs-container">
+        <div class="obs-title">Observações Extras Adicionadas</div>
+        <p style="margin: 0; font-size: 11pt; color: #1e293b; line-height: 1.5;">${observation.replace(/\n/g, '<br>')}</p>
+      </div>
+      ` : ''}
+
+      <div class="footer">
+        Ficha de Visitante gerada de forma automatizada pelo Sistema de Gestão de Visitantes da Igreja Presbiteriana.<br>
+        Documento gerado em ${new Date().toLocaleString('pt-BR')}
+      </div>
+    </body>
+    </html>
+  `;
+
+  const blob = new Blob(['\ufeff' + htmlContent], { type: 'application/msword;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  const sanitizedVisitorName = visitor.name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+  link.setAttribute('download', `ficha_visitante_${sanitizedVisitorName}.docx`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -2187,68 +2374,32 @@ CREATE POLICY "Deleção por Master" ON public.profiles
                     />
                   </div>
 
-                  <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100 flex flex-col gap-2">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Visualização do Link Gerado</p>
-                    <div className="flex items-center gap-2 bg-white border border-slate-100 p-2.5 rounded-xl">
-                      <input
-                        type="text"
-                        readOnly
-                        value={(() => {
-                          const payloadData = {
-                            id: sharingVisitor.id,
-                            name: sharingVisitor.name,
-                            phone: sharingVisitor.phone,
-                            address: sharingVisitor.address,
-                            age: sharingVisitor.age,
-                            gender: sharingVisitor.gender,
-                            birthDate: sharingVisitor.birthDate,
-                            participatesInCell: sharingVisitor.participatesInCell,
-                            cellLeader: sharingVisitor.cellLeader,
-                            category: sharingVisitor.category,
-                            isMarriedOrLivesTogether: sharingVisitor.isMarriedOrLivesTogether,
-                            prayerRequest: sharingVisitor.prayerRequest,
-                            invitedBy: sharingVisitor.invitedBy,
-                            obs: sharingObservation
-                          };
-                          const jsonStr = JSON.stringify(payloadData);
-                          const latin1 = unescape(encodeURIComponent(jsonStr));
-                          const base64 = btoa(latin1);
-                          return `${window.location.origin}${window.location.pathname}?shared=${base64}`;
-                        })()}
-                        className="text-xs bg-transparent border-none focus:outline-none text-slate-500 truncate flex-1 font-mono"
-                      />
-                      <button
-                        onClick={() => {
-                          const payloadData = {
-                            id: sharingVisitor.id,
-                            name: sharingVisitor.name,
-                            phone: sharingVisitor.phone,
-                            address: sharingVisitor.address,
-                            age: sharingVisitor.age,
-                            gender: sharingVisitor.gender,
-                            birthDate: sharingVisitor.birthDate,
-                            participatesInCell: sharingVisitor.participatesInCell,
-                            cellLeader: sharingVisitor.cellLeader,
-                            category: sharingVisitor.category,
-                            isMarriedOrLivesTogether: sharingVisitor.isMarriedOrLivesTogether,
-                            prayerRequest: sharingVisitor.prayerRequest,
-                            invitedBy: sharingVisitor.invitedBy,
-                            obs: sharingObservation
-                          };
-                          const jsonStr = JSON.stringify(payloadData);
-                          const latin1 = unescape(encodeURIComponent(jsonStr));
-                          const base64 = btoa(latin1);
-                          const link = `${window.location.origin}${window.location.pathname}?shared=${base64}`;
-                          navigator.clipboard.writeText(link);
-                          setCopiedLink(true);
-                          setTimeout(() => setCopiedLink(false), 3000);
-                        }}
-                        className="p-1 px-3 text-[10px] rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all font-bold flex items-center gap-1 shrink-0"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                        {copiedLink ? 'Copiado!' : 'Copiar'}
-                      </button>
+                  <div className="bg-blue-50/50 rounded-2xl p-5 border-2 border-blue-100 flex flex-col gap-3">
+                    <p className="text-[10px] font-black text-blue-800 uppercase tracking-widest flex items-center gap-1">
+                      <Sparkles className="w-4 h-4 text-blue-600 animate-pulse" />
+                      Ficha Pronta em Formato Word (.docx)
+                    </p>
+                    
+                    <div className="flex items-center gap-3 bg-white p-3.5 rounded-xl border border-blue-50 shadow-sm">
+                      <div className="bg-blue-600 p-2.5 rounded-xl text-white shadow-md shadow-blue-200">
+                        <FileText className="w-5 h-5 font-bold" />
+                      </div>
+                      <div className="flex-1 overflow-hidden">
+                        <p className="text-xs font-bold text-slate-800 truncate">
+                          ficha_visitante_${sharingVisitor.name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}.docx
+                        </p>
+                        <p className="text-[10px] text-slate-400 font-semibold uppercase">Microsoft Word Document</p>
+                      </div>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => downloadVisitorWord(sharingVisitor, sharingObservation)}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white h-12 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl shadow-blue-900/10 active:scale-95 transition-all"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Baixar Arquivo Word (.docx)
+                    </button>
                   </div>
                 </div>
 
@@ -2258,41 +2409,27 @@ CREATE POLICY "Deleção por Master" ON public.profiles
                     onClick={() => setSharingVisitor(null)}
                     className="flex-1 border-2 border-slate-100 hover:bg-slate-50 h-12 rounded-2xl font-black text-xs uppercase tracking-widest text-slate-500 transition-all active:scale-95"
                   >
-                    Cancelar
+                    Fechar
                   </button>
                   <a
                     href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
-                      `Olá! Gostaria de compartilhar a ficha de visita de: *${sharingVisitor.name}*\n` +
-                      (sharingObservation ? `*Observação:* ${sharingObservation}\n` : '') +
-                      `\nVisualizar ficha completa:\n${(() => {
-                        const payloadData = {
-                          id: sharingVisitor.id,
-                          name: sharingVisitor.name,
-                          phone: sharingVisitor.phone,
-                          address: sharingVisitor.address,
-                          age: sharingVisitor.age,
-                          gender: sharingVisitor.gender,
-                          birthDate: sharingVisitor.birthDate,
-                          participatesInCell: sharingVisitor.participatesInCell,
-                          cellLeader: sharingVisitor.cellLeader,
-                          category: sharingVisitor.category,
-                          isMarriedOrLivesTogether: sharingVisitor.isMarriedOrLivesTogether,
-                          prayerRequest: sharingVisitor.prayerRequest,
-                          invitedBy: sharingVisitor.invitedBy,
-                          obs: sharingObservation
-                        };
-                        const jsonStr = JSON.stringify(payloadData);
-                        const latin1 = unescape(encodeURIComponent(jsonStr));
-                        const base64 = btoa(latin1);
-                        return `${window.location.origin}${window.location.pathname}?shared=${base64}`;
-                      })()}`
+                      `*IP IPCC - FICHA DE VISITANTE*\n\n` +
+                      `*Nome:* ${sharingVisitor.name.toUpperCase()}\n` +
+                      `*Telefone:* ${sharingVisitor.phone}\n` +
+                      `*Grupo:* ${sharingVisitor.category ? sharingVisitor.category.toUpperCase() : 'Não inf.'}\n` +
+                      `*Idade/Sexo:* ${sharingVisitor.age || 'Não inf.'} anos | ${sharingVisitor.gender || 'Não inf.'}\n` +
+                      `*Célula:* ${sharingVisitor.participatesInCell === 'sim' ? `Sim (Líder: ${sharingVisitor.cellLeader || 'Não inf.'})` : 'Não'}\n` +
+                      (sharingVisitor.invitedBy ? `*Convidado por:* ${sharingVisitor.invitedBy}\n` : '') +
+                      (sharingVisitor.address ? `*Endereço:* ${sharingVisitor.address}\n` : '') +
+                      (sharingVisitor.prayerRequest ? `*Pedido de Oração:* ${sharingVisitor.prayerRequest}\n` : '') +
+                      (sharingObservation ? `\n*Ficha Adicional / Observação:* ${sharingObservation}\n` : '')
                     )}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex-1 bg-emerald-600 text-white hover:bg-emerald-700 h-12 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
+                    className="flex-1 bg-emerald-600 text-white hover:bg-emerald-700 h-12 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-xl shadow-emerald-900/10"
                   >
                     <Phone className="w-4 h-4" />
-                    Enviar WhatsApp
+                    Enviar via WhatsApp
                   </a>
                 </div>
               </motion.div>
