@@ -70,7 +70,9 @@ DROP POLICY IF EXISTS "Permitir inserção para usuários autenticados" ON publi
 DROP POLICY IF EXISTS "Permitir deleção para quem criou ou master admin" ON public.visitors;
 DROP POLICY IF EXISTS "Permitir atualização para quem criou ou master admin" ON public.visitors;
 
-CREATE POLICY "Ver todos visitantes" ON public.visitors FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Ver todos visitantes" ON public.visitors FOR SELECT TO authenticated USING (
+  auth.uid() = created_by OR auth.jwt() ->> 'email' = 'adminnovo@gmail.com'
+);
 CREATE POLICY "Cadastrar visitante" ON public.visitors FOR INSERT TO authenticated WITH CHECK (auth.uid() = created_by);
 CREATE POLICY "Deletar / Editar permissão master" ON public.visitors FOR ALL TO authenticated USING (
   auth.uid() = created_by OR auth.jwt() ->> 'email' = 'adminnovo@gmail.com'

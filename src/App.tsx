@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Calendar,
   Baby,
+  AlertCircle,
   Trash2,
   Pencil,
   X,
@@ -23,7 +24,10 @@ import {
   Sparkles,
   Users,
   RefreshCw,
-  Key
+  Key,
+  Share2,
+  Copy,
+  ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { createClient } from '@supabase/supabase-js';
@@ -107,10 +111,19 @@ const calculateAge = (birthDate: string) => {
   return age >= 0 ? age.toString() : '-';
 };
 
-const CSVReportGenerator = (visitors: Visitor[], category: string, period: string) => {
-  const headers = ['Nome', 'Telefone', 'Grupo', 'Idade', 'Sexo', 'Data de Nascimento', 'Participa de Célula', 'Mora Junto/Casado', 'Algum pedido de Oração?', 'Endereço', 'Data de Reg.'];
-  const rows = visitors.map(v => {
-    let dateStr = '';
+const TXTReportGenerator = (visitors: Visitor[], category: string, period: string) => {
+  const separator = "================================================================================\n";
+  const lineSeparator = "--------------------------------------------------------------------------------\n";
+  
+  let content = separator;
+  content += `RELATÓRIO DE VISITANTES - IP IPCC\n`;
+  content += `Categoria: ${category.toUpperCase()} | Período: ${period === 'all' ? 'Todos' : (period === 'weekly' ? 'Últimos 7 dias' : 'Últimos 30 dias')}\n`;
+  content += `Total de Visitantes: ${visitors.length}\n`;
+  content += `Gerado em: ${new Date().toLocaleString('pt-BR')}\n`;
+  content += separator + "\n";
+
+  visitors.forEach((v, index) => {
+    let dateStr = 'Não informada';
     try {
       if (v.createdAt) {
         if (typeof v.createdAt === 'object' && v.createdAt.seconds) {
@@ -120,40 +133,49 @@ const CSVReportGenerator = (visitors: Visitor[], category: string, period: strin
         }
       }
     } catch (e) {
-      console.error('Error parsing date:', e);
+      console.error(e);
     }
 
-    const visitorAge = v.age || (v.birthDate ? calculateAge(v.birthDate) : '');
+    const ageStr = v.age || (v.birthDate ? calculateAge(v.birthDate) : 'Não inf.');
 
-    return [
-      v.name,
-      v.phone,
-      v.category || '',
-      visitorAge,
-      v.gender || '',
-      v.birthDate || '',
-      v.participatesInCell === 'sim' ? `Sim ${v.cellLeader ? '(' + v.cellLeader + ')' : ''}` : (v.participatesInCell === 'nao' ? `Não ${v.invitedBy ? '(Conv: ' + v.invitedBy + ')' : ''}` : v.participatesInCell || ''),
-      v.isMarriedOrLivesTogether || '',
-      v.prayerRequest ? v.prayerRequest.replace(/,/g, ';').replace(/\n/g, ' ') : '',
-      v.address.replace(/,/g, ';'),
-      dateStr
-    ];
+    content += `${index + 1}. NOME: ${v.name.toUpperCase()}\n`;
+    content += `   Telefone: ${v.phone}\n`;
+    content += `   Categoria/Grupo: ${v.category || 'Não inf.'}\n`;
+    content += `   Idade: ${ageStr} | Gênero: ${v.gender || 'Não inf.'}\n`;
+    content += `   Data de Nasc.: ${v.birthDate || 'Não inf.'}\n`;
+    content += `   Mora junto / Casado: ${v.isMarriedOrLivesTogether || 'Não inf.'}\n`;
+    content += `   Quem convidou: ${v.invitedBy || 'Não inf.'}\n`;
+    content += `   Participa de Célula: ${v.participatesInCell === 'sim' ? 'Sim' : 'Não'}${v.cellLeader ? ' (Líder: ' + v.cellLeader + ')' : ''}\n`;
+    content += `   Endereço: ${v.address || 'Não inf.'}\n`;
+    if (v.prayerRequest) {
+      content += `   Pedido de Oração: ${v.prayerRequest}\n`;
+    }
+    content += `   Data de Cadastro: ${dateStr}\n`;
+    content += lineSeparator + "\n";
   });
 
-  const csvContent = [
-    headers.join(','),
-    ...rows.map(row => row.join(','))
-  ].join('\n');
-
-  const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob(['\ufeff' + content], { type: 'text/plain;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
-  link.setAttribute('download', `relatorio-${category}-${period}.csv`);
+  link.setAttribute('download', `relatorio-${category}-${period}.txt`);
   link.style.visibility = 'hidden';
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+};
+
+const getSharedVisitorData = (): any | null => {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const shared = params.get('shared');
+    if (!shared) return null;
+    const decoded = decodeURIComponent(escape(atob(shared)));
+    return JSON.parse(decoded);
+  } catch (e) {
+    console.error('Error decoding shared visitor data:', e);
+    return null;
+  }
 };
 
 export default function App() {
@@ -171,6 +193,12 @@ export default function App() {
   // Report filter states
   const [reportPeriod, setReportPeriod] = useState<'all' | 'weekly' | 'monthly'>('all');
   const [reportCategory, setReportCategory] = useState<'homens' | 'mulheres' | 'jovens' | 'todas'>('homens');
+  const [visitorSearchTerm, setVisitorSearchTerm] = useState('');
+
+  // Compartilhamento states
+  const [sharingVisitor, setSharingVisitor] = useState<Visitor | null>(null);
+  const [sharingObservation, setSharingObservation] = useState('');
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Admin User Management states
   const [adminNewUserEmail, setAdminNewUserEmail] = useState('');
@@ -415,6 +443,21 @@ export default function App() {
   const isUserAdmin = !!currentUserAdminCategory || user?.email === 'adminnovo@gmail.com' || currentUserProfile?.role === 'admin';
   const effectiveAdminCategory = currentUserAdminCategory || (user?.email === 'adminnovo@gmail.com' ? 'todas' : null);
 
+  const isMasterAdmin = user?.email === 'adminnovo@gmail.com';
+  const allowedVisitors = isMasterAdmin
+    ? visitors
+    : visitors.filter(v => v.createdBy === user?.id);
+
+  const displayVisitors = allowedVisitors.filter(v => {
+    if (!visitorSearchTerm) return true;
+    const term = visitorSearchTerm.toLowerCase();
+    return (
+      v.name.toLowerCase().includes(term) ||
+      v.phone.toLowerCase().includes(term) ||
+      (v.invitedBy && v.invitedBy.toLowerCase().includes(term))
+    );
+  });
+
   // Visitor form states
   const [showCategoryStep, setShowCategoryStep] = useState(true);
   const [formData, setFormData] = useState<{
@@ -607,6 +650,12 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleShareVisitor = (visitor: Visitor) => {
+    setSharingVisitor(visitor);
+    setSharingObservation('');
+    setCopiedLink(false);
+  };
+
   const handleDeleteVisitor = async (id: string) => {
     if (!window.confirm('Tem certeza que deseja remover este visitante?')) return;
     
@@ -696,8 +745,8 @@ export default function App() {
     }
   };
 
-  const handleGenerateReport = (type: 'pdf' | 'csv') => {
-    let filtered = [...visitors];
+  const handleGenerateReport = (type: 'pdf' | 'txt') => {
+    let filtered = [...allowedVisitors];
 
     // Filter by category
     if (reportCategory !== 'todas') {
@@ -729,9 +778,148 @@ export default function App() {
     if (type === 'pdf') {
       PDFReportGenerator(filtered, reportCategory, reportPeriod);
     } else {
-      CSVReportGenerator(filtered, reportCategory, reportPeriod);
+      TXTReportGenerator(filtered, reportCategory, reportPeriod);
     }
   };
+
+  const sharedData = getSharedVisitorData();
+
+  if (sharedData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-tr from-slate-100 to-blue-50/20 p-4 sm:p-8 flex items-center justify-center font-sans relative">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 p-6 sm:p-10 max-w-2xl w-full text-slate-800 relative overflow-hidden"
+        >
+          {/* Top aesthetic bar */}
+          <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500 to-emerald-500" />
+          
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-4 mb-6 pb-6 border-b border-slate-100">
+            <div>
+              <div className="flex items-center gap-2 text-blue-600 font-extrabold uppercase text-[10px] sm:text-xs tracking-widest mb-1">
+                <Church className="w-5 h-5" />
+                <span>Ficha de Visitante Compartilhada</span>
+              </div>
+              <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-none uppercase mt-2">
+                {sharedData.name}
+              </h1>
+              <p className="text-slate-400 text-xs sm:text-sm font-semibold mt-2 bg-slate-50 px-3 py-1.5 rounded-xl w-fit">
+                Idade: {sharedData.age || 'Não inf.'} | Gênero: {sharedData.gender || 'Não inf.'}
+              </p>
+            </div>
+            
+            <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest ${
+              sharedData.category === 'homens'
+                ? 'bg-blue-50 text-blue-600 border border-blue-100 shadow-sm shadow-blue-100/50'
+                : sharedData.category === 'mulheres'
+                ? 'bg-rose-50 text-rose-600 border border-rose-100 shadow-sm shadow-rose-100/50'
+                : 'bg-indigo-50 text-indigo-600 border border-indigo-100 shadow-sm shadow-indigo-100/50'
+            }`}>
+              {sharedData.category || 'Não inf.'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div className="space-y-4">
+              <div>
+                <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Telefone Principal</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-base font-bold text-slate-700">{sharedData.phone}</span>
+                  <a
+                    href={`https://wa.me/55${sharedData.phone.replace(/\D/g, '')}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="p-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl transition-all"
+                    title="Chamar no WhatsApp"
+                  >
+                    <Phone className="w-4 h-4" />
+                  </a>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Mora Junto / Casado</p>
+                <p className="text-sm font-semibold text-slate-700 mt-1 capitalize">
+                  {sharedData.isMarriedOrLivesTogether || 'Não informado'}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Convidado Por</p>
+                <p className="text-sm font-bold text-slate-700 mt-1 flex items-center gap-1">
+                  <UserPlus className="w-4 h-4 text-slate-400" />
+                  {sharedData.invitedBy || 'Chegou sozinho'}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Participa de Célula</p>
+                {sharedData.participatesInCell === 'sim' ? (
+                  <div className="mt-1">
+                    <p className="text-sm font-bold text-slate-700">Líder: {sharedData.cellLeader || 'Não inf.'}</p>
+                    <span className="inline-block mt-1 bg-emerald-50 text-emerald-600 text-[10px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded-full">
+                      Membro Ativo de Célula
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-sm font-semibold text-slate-500 mt-1">Não participa de célula</p>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Endereço</p>
+                <p className="text-sm font-semibold text-slate-600 mt-1 flex items-start gap-1">
+                  <MapPin className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                  <span>{sharedData.address || 'Não informado'}</span>
+                </p>
+              </div>
+
+              {sharedData.prayerRequest && (
+                <div>
+                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Pedido de Oração</p>
+                  <p className="text-sm italic text-slate-600 bg-amber-50/50 p-3 rounded-2xl border border-amber-100/50 mt-1 leading-relaxed">
+                    "{sharedData.prayerRequest}"
+                  </p>
+                </div>
+              )}
+
+              {sharedData.obs && (
+                <div className="bg-blue-50/70 border-2 border-blue-100 p-4 rounded-3xl mt-4">
+                  <div className="flex items-center gap-2 text-blue-700 font-extrabold uppercase text-[10px] tracking-wider mb-1">
+                    <Sparkles className="w-4 h-4 text-blue-500" />
+                    <span>Observação Extra Adicionada</span>
+                  </div>
+                  <p className="text-slate-700 text-sm font-semibold leading-relaxed">
+                    {sharedData.obs}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="pt-6 border-t border-slate-100 flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={() => {
+                window.location.href = window.location.origin + window.location.pathname;
+              }}
+              className="flex-1 bg-slate-900 text-white hover:bg-slate-800 h-12 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+            >
+              Ir para Tela de Login Base
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="px-6 border-2 border-slate-100 text-slate-600 hover:bg-slate-50 h-12 rounded-2xl font-black text-xs uppercase tracking-widest transition-all"
+            >
+              Imprimir
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -1696,7 +1884,7 @@ CREATE POLICY "Deleção por Master" ON public.profiles
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
                       <div>
                         <h2 className="text-3xl sm:text-4xl font-black text-slate-900 mb-1 tracking-tighter">Relatórios & Gestão</h2>
-                        <p className="text-slate-500 text-sm font-medium tracking-tight">Total de {visitors.length} registros.</p>
+                        <p className="text-slate-500 text-sm font-medium tracking-tight">Total de {allowedVisitors.length} registros.</p>
                       </div>
                     </div>
 
@@ -1766,7 +1954,7 @@ CREATE POLICY "Deleção por Master" ON public.profiles
 
                         <div className="pt-8 border-t border-slate-100 flex flex-wrap gap-4">
                           <button 
-                            disabled={visitors.length === 0}
+                            disabled={allowedVisitors.length === 0}
                             onClick={() => handleGenerateReport('pdf')}
                             className="flex-1 sm:flex-none bg-blue-600 text-white hover:bg-blue-700 px-8 h-14 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-blue-900/20 active:scale-95 transition-all disabled:opacity-40"
                           >
@@ -1774,17 +1962,139 @@ CREATE POLICY "Deleção por Master" ON public.profiles
                             Gerar PDF
                           </button>
                           <button 
-                            disabled={visitors.length === 0}
-                            onClick={() => handleGenerateReport('csv')}
+                            disabled={allowedVisitors.length === 0}
+                            onClick={() => handleGenerateReport('txt')}
                             className="flex-1 sm:flex-none bg-emerald-600 text-white hover:bg-emerald-700 px-8 h-14 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-emerald-900/20 active:scale-95 transition-all disabled:opacity-40"
                           >
                             <FileText className="w-5 h-5" />
-                            Exportar CSV
+                            Exportar TXT
                           </button>
                         </div>
                       </div>
                     </div>
 
+                    {/* Lista de Visitantes Cadastrados */}
+                    <div className="card-native p-6 sm:p-8 bg-white border-2 border-slate-100 shadow-xl shadow-slate-900/5 mt-8">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                        <div className="flex items-center gap-3">
+                          <div className="bg-slate-100 p-2.5 rounded-2xl text-slate-600">
+                            <Users className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Visitantes</h3>
+                            <p className="text-slate-400 text-xs font-semibold">
+                              Exibindo {displayVisitors.length} de {allowedVisitors.length} registros
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Search Input */}
+                        <div className="relative w-full sm:w-72">
+                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4" />
+                          <input
+                            type="text"
+                            placeholder="Buscar por nome ou telefone..."
+                            value={visitorSearchTerm}
+                            onChange={(e) => setVisitorSearchTerm(e.target.value)}
+                            className="w-full pl-11 pr-4 py-2.5 rounded-2xl border-2 border-slate-100 placeholder-slate-300 text-slate-700 text-sm focus:border-blue-500 focus:outline-none transition-all"
+                          />
+                          {visitorSearchTerm && (
+                            <button
+                              onClick={() => setVisitorSearchTerm('')}
+                              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                            >
+                              Limpar
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {displayVisitors.length === 0 ? (
+                        <div className="text-center py-12 border-2 border-dashed border-slate-100 rounded-3xl">
+                          <AlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                          <p className="text-slate-400 text-sm font-semibold">Nenhum visitante cadastrado ou encontrado.</p>
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto -mx-6 sm:-mx-8">
+                          <div className="inline-block min-w-full align-middle px-6 sm:px-8">
+                            <table className="min-w-full divide-y divide-slate-100">
+                              <thead>
+                                <tr className="text-slate-400 text-[10px] font-black uppercase tracking-widest text-left">
+                                  <th className="pb-4 pt-1 font-black">Nome</th>
+                                  <th className="pb-4 pt-1 font-black">Grupo</th>
+                                  <th className="pb-4 pt-1 font-black">Telefone</th>
+                                  <th className="pb-4 pt-1 font-black">Líder / Célula</th>
+                                  <th className="pb-4 pt-1 font-black">Quem Convidou</th>
+                                  <th className="pb-4 pt-1 font-black text-right">Ações</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-50">
+                                {displayVisitors.map((visitor) => (
+                                  <tr key={visitor.id} className="hover:bg-slate-50/50 transition-all text-slate-700 text-sm font-medium">
+                                    <td className="py-4 font-semibold text-slate-900">
+                                      <div>
+                                        <p>{visitor.name}</p>
+                                        <p className="text-[10px] text-slate-400 mt-0.5">
+                                          Idade: {visitor.age || 'Não inf.'} | {visitor.gender || 'Não inf.'}
+                                        </p>
+                                      </div>
+                                    </td>
+                                    <td className="py-4">
+                                      <span className={`px-2.5 py-1 rounded-full text-[9px] font-extrabold uppercase tracking-widest ${
+                                        visitor.category === 'homens'
+                                          ? 'bg-blue-50 text-blue-600 border border-blue-100'
+                                          : visitor.category === 'mulheres'
+                                          ? 'bg-rose-50 text-rose-600 border border-rose-100'
+                                          : 'bg-indigo-50 text-indigo-600 border border-indigo-100'
+                                      }`}>
+                                        {visitor.category || 'Não inf.'}
+                                      </span>
+                                    </td>
+                                    <td className="py-4 text-slate-500 text-xs sm:text-sm">{visitor.phone}</td>
+                                    <td className="py-4 text-slate-500 text-xs">
+                                      {visitor.participatesInCell === 'sim' ? (
+                                        <div>
+                                          <p className="font-semibold text-slate-600">Líder: {visitor.cellLeader || 'Não inf.'}</p>
+                                          <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider mt-0.5">Participa de Célula</p>
+                                        </div>
+                                      ) : (
+                                        <span className="text-slate-400">Não participa</span>
+                                      )}
+                                    </td>
+                                    <td className="py-4 text-slate-500 text-xs">{visitor.invitedBy || 'Ninguém'}</td>
+                                    <td className="py-4 text-right">
+                                      <div className="flex items-center justify-end gap-2">
+                                        <button
+                                          onClick={() => handleShareVisitor(visitor)}
+                                          className="p-2 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-all"
+                                          title="Compartilhar Visitante"
+                                        >
+                                          <Share2 className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                          onClick={() => handleEditVisitor(visitor)}
+                                          className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition-all"
+                                          title="Editar Visitante"
+                                        >
+                                          <Pencil className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteVisitor(visitor.id!)}
+                                          className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-all"
+                                          title="Excluir Visitante"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
                 </motion.div>
               )}
@@ -1834,6 +2144,161 @@ CREATE POLICY "Deleção por Master" ON public.profiles
             </button>
           )}
         </nav>
+
+        {/* Modal de Compartilhamento */}
+        <AnimatePresence>
+          {sharingVisitor && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                className="bg-white rounded-[2.5rem] p-6 sm:p-8 w-full max-w-lg shadow-2xl border border-slate-100 flex flex-col relative"
+              >
+                <button
+                  onClick={() => setSharingVisitor(null)}
+                  className="absolute top-6 right-6 p-2 hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-xl transition-all"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="bg-emerald-50 text-emerald-600 p-2.5 rounded-2xl">
+                    <Share2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-800 tracking-tight uppercase">Compartilhar Visitante</h3>
+                    <p className="text-slate-400 text-xs font-semibold">{sharingVisitor.name}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4 my-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Observação Extra (Opcional)</label>
+                    <textarea
+                      rows={3}
+                      placeholder="Escreva alguma observação ou detalhe adicional para enviar junto com o visitante..."
+                      value={sharingObservation}
+                      onChange={(e) => {
+                        setSharingObservation(e.target.value);
+                        setCopiedLink(false);
+                      }}
+                      className="w-full rounded-2xl border-2 border-slate-100 p-3 text-slate-700 text-sm focus:border-blue-500 focus:outline-none transition-all placeholder-slate-300 resize-none min-h-[90px]"
+                    />
+                  </div>
+
+                  <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100 flex flex-col gap-2">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Visualização do Link Gerado</p>
+                    <div className="flex items-center gap-2 bg-white border border-slate-100 p-2.5 rounded-xl">
+                      <input
+                        type="text"
+                        readOnly
+                        value={(() => {
+                          const payloadData = {
+                            id: sharingVisitor.id,
+                            name: sharingVisitor.name,
+                            phone: sharingVisitor.phone,
+                            address: sharingVisitor.address,
+                            age: sharingVisitor.age,
+                            gender: sharingVisitor.gender,
+                            birthDate: sharingVisitor.birthDate,
+                            participatesInCell: sharingVisitor.participatesInCell,
+                            cellLeader: sharingVisitor.cellLeader,
+                            category: sharingVisitor.category,
+                            isMarriedOrLivesTogether: sharingVisitor.isMarriedOrLivesTogether,
+                            prayerRequest: sharingVisitor.prayerRequest,
+                            invitedBy: sharingVisitor.invitedBy,
+                            obs: sharingObservation
+                          };
+                          const jsonStr = JSON.stringify(payloadData);
+                          const latin1 = unescape(encodeURIComponent(jsonStr));
+                          const base64 = btoa(latin1);
+                          return `${window.location.origin}${window.location.pathname}?shared=${base64}`;
+                        })()}
+                        className="text-xs bg-transparent border-none focus:outline-none text-slate-500 truncate flex-1 font-mono"
+                      />
+                      <button
+                        onClick={() => {
+                          const payloadData = {
+                            id: sharingVisitor.id,
+                            name: sharingVisitor.name,
+                            phone: sharingVisitor.phone,
+                            address: sharingVisitor.address,
+                            age: sharingVisitor.age,
+                            gender: sharingVisitor.gender,
+                            birthDate: sharingVisitor.birthDate,
+                            participatesInCell: sharingVisitor.participatesInCell,
+                            cellLeader: sharingVisitor.cellLeader,
+                            category: sharingVisitor.category,
+                            isMarriedOrLivesTogether: sharingVisitor.isMarriedOrLivesTogether,
+                            prayerRequest: sharingVisitor.prayerRequest,
+                            invitedBy: sharingVisitor.invitedBy,
+                            obs: sharingObservation
+                          };
+                          const jsonStr = JSON.stringify(payloadData);
+                          const latin1 = unescape(encodeURIComponent(jsonStr));
+                          const base64 = btoa(latin1);
+                          const link = `${window.location.origin}${window.location.pathname}?shared=${base64}`;
+                          navigator.clipboard.writeText(link);
+                          setCopiedLink(true);
+                          setTimeout(() => setCopiedLink(false), 3000);
+                        }}
+                        className="p-1 px-3 text-[10px] rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all font-bold flex items-center gap-1 shrink-0"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        {copiedLink ? 'Copiado!' : 'Copiar'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSharingVisitor(null)}
+                    className="flex-1 border-2 border-slate-100 hover:bg-slate-50 h-12 rounded-2xl font-black text-xs uppercase tracking-widest text-slate-500 transition-all active:scale-95"
+                  >
+                    Cancelar
+                  </button>
+                  <a
+                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
+                      `Olá! Gostaria de compartilhar a ficha de visita de: *${sharingVisitor.name}*\n` +
+                      (sharingObservation ? `*Observação:* ${sharingObservation}\n` : '') +
+                      `\nVisualizar ficha completa:\n${(() => {
+                        const payloadData = {
+                          id: sharingVisitor.id,
+                          name: sharingVisitor.name,
+                          phone: sharingVisitor.phone,
+                          address: sharingVisitor.address,
+                          age: sharingVisitor.age,
+                          gender: sharingVisitor.gender,
+                          birthDate: sharingVisitor.birthDate,
+                          participatesInCell: sharingVisitor.participatesInCell,
+                          cellLeader: sharingVisitor.cellLeader,
+                          category: sharingVisitor.category,
+                          isMarriedOrLivesTogether: sharingVisitor.isMarriedOrLivesTogether,
+                          prayerRequest: sharingVisitor.prayerRequest,
+                          invitedBy: sharingVisitor.invitedBy,
+                          obs: sharingObservation
+                        };
+                        const jsonStr = JSON.stringify(payloadData);
+                        const latin1 = unescape(encodeURIComponent(jsonStr));
+                        const base64 = btoa(latin1);
+                        return `${window.location.origin}${window.location.pathname}?shared=${base64}`;
+                      })()}`
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-1 bg-emerald-600 text-white hover:bg-emerald-700 h-12 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
+                  >
+                    <Phone className="w-4 h-4" />
+                    Enviar WhatsApp
+                  </a>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
