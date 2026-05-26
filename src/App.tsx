@@ -553,70 +553,57 @@ export default function App() {
   }, [view, isUserAdmin]);
 
   useEffect(() => {
-    // Check active sessions and sets up the observer
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    // Check active sessions and sets up the observer gracefully
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
       if (session?.user) {
         visitorService.testConnection();
         fetchVisitors();
-        
-        // Auto-save current user profile with master admin check
-        const isMasterAdmin = session.user.email === 'adminnovo@gmail.com';
-        const role = (session.user.user_metadata?.admin_category || isMasterAdmin) ? 'admin' : 'user';
-        const category = session.user.user_metadata?.admin_category || null;
-        
-        let displayName = session.user.user_metadata?.display_name || 'Usuário';
-        if (isMasterAdmin) {
-          displayName = 'Admin Master';
-        }
-
-        try {
-          await userService.upsertProfile({
-            id: session.user.id,
-            email: session.user.email || '',
-            display_name: displayName,
-            admin_category: category,
-            role: role
-          });
-          fetchProfiles();
-        } catch (err) {
-          console.error('Erro silencioso ao sincronizar perfil:', err);
-          // Não joga erro para não travar a aplicação no cliente
-        }
-
-        setView('home');
+        fetchProfiles();
       }
+    }).catch(err => {
+      console.error('Erro ao buscar sessão inicial:', err);
+      setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const isLoggingIn = !user && session?.user;
       setUser(session?.user ?? null);
+      setLoading(false);
+
       if (session?.user) {
         visitorService.testConnection();
         fetchVisitors();
         fetchProfiles();
 
-        // Auto-save current user profile
-        const isMasterAdmin = session.user.email === 'adminnovo@gmail.com';
-        let displayName = session.user.user_metadata?.display_name || 'Usuário';
-        if (isMasterAdmin) {
-          displayName = 'Admin Master';
+        // Salva/Sincroniza perfil apenas em eventos de login novos ou atualização cadastral
+        // Isso evita overhead/loop de escritas desnecessárias a cada refresh de token silencioso
+        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+          const isMasterAdmin = session.user.email === 'adminnovo@gmail.com';
+          let displayName = session.user.user_metadata?.display_name || 'Usuário';
+          if (isMasterAdmin) {
+            displayName = 'Admin Master';
+          }
+
+          try {
+            await userService.upsertProfile({
+              id: session.user.id,
+              email: session.user.email || '',
+              display_name: displayName,
+              admin_category: session.user.user_metadata?.admin_category || null,
+              role: (session.user.user_metadata?.admin_category || isMasterAdmin) ? 'admin' : 'user'
+            });
+            fetchProfiles();
+          } catch (err) {
+            console.error('Erro silencioso ao auto-salvar perfil:', err);
+          }
         }
 
-        try {
-          await userService.upsertProfile({
-            id: session.user.id,
-            email: session.user.email || '',
-            display_name: displayName,
-            admin_category: session.user.user_metadata?.admin_category || null,
-            role: (session.user.user_metadata?.admin_category || isMasterAdmin) ? 'admin' : 'user'
-          });
-          fetchProfiles();
-        } catch (err) {
-          console.error('Erro silencioso ao auto-salvar perfil:', err);
+        // Redireciona para home apenas no login ativo, impedindo que resets ocorram em refreshes de token em segundo plano
+        if (isLoggingIn) {
+          setView('home');
         }
-
-        setView('home');
       }
     });
 
@@ -685,7 +672,34 @@ export default function App() {
     }
   };
 
-  const handleLogout = () => supabase.auth.signOut();
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error('Erro ao fazer logout do Supabase:', err);
+    } finally {
+      // Força a limpeza de todos os estados no cliente para garantir que saia imediatamento da tela do app
+      setUser(null);
+      setCurrentUserProfile(null);
+      setVisitors([]);
+      setProfiles([]);
+      setView('home');
+      // Remove quaisquer tokens de autenticação salvos locais para evitar login corrompido automático
+      try {
+        localStorage.removeItem('supabase.auth.token');
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.startsWith('sb-') || key.includes('supabase.auth'))) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+      } catch (locErr) {
+        console.error('Erro no localStorage ao deslogar:', locErr);
+      }
+    }
+  };
 
   const handleDeleteUser = async (id: string) => {
     if (!window.confirm('Tem certeza que deseja remover este usuário da lista? (Isso não remove o acesso dele do Supabase Auth, apenas da lista de gerenciamento)')) return;
