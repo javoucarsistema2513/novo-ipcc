@@ -12,6 +12,7 @@ export interface Visitor {
   isMarriedOrLivesTogether?: string;
   prayerRequest?: string;
   invitedBy?: string;
+  observation?: string;
   createdAt: any; // ServerTimestamp
   createdBy: string;
 }

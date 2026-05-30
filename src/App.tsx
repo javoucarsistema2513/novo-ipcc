@@ -41,7 +41,19 @@ const PDFReportGenerator = (visitors: Visitor[], category: string, period: strin
   const doc = new jsPDF();
   
   const categoryLabel = category === 'todas' ? 'Toda Equipe' : category === 'homens' ? 'Homens' : category === 'mulheres' ? 'Mulheres' : 'Jovens';
-  const periodLabel = period === 'all' ? 'Todos' : period === 'weekly' ? 'Últimos 7 dias' : 'Últimos 30 dias';
+  
+  const months = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
+  let periodLabel = 'Todos';
+  if (period === 'weekly') periodLabel = 'Últimos 7 dias';
+  else if (period === 'monthly') periodLabel = 'Últimos 30 dias';
+  else if (period.startsWith('custom:')) {
+    const [, month, year] = period.split(':');
+    const mIndex = parseInt(month, 10) - 1;
+    periodLabel = `${months[mIndex] || month} de ${year}`;
+  }
 
   doc.setFontSize(20);
   doc.text(`Relatório: ${categoryLabel}`, 14, 22);
@@ -76,7 +88,9 @@ const PDFReportGenerator = (visitors: Visitor[], category: string, period: strin
       v.birthDate || '-',
       v.participatesInCell === 'sim' ? `Sim ${v.cellLeader ? '(' + v.cellLeader + ')' : ''}` : v.participatesInCell === 'nao' ? `Não ${v.invitedBy ? '(Conv: ' + v.invitedBy + ')' : ''}` : '-',
       v.isMarriedOrLivesTogether === 'sim' ? 'Sim' : v.isMarriedOrLivesTogether === 'nao' ? 'Não' : '-',
-      v.prayerRequest || '-',
+      v.prayerRequest
+        ? `${v.prayerRequest}${v.observation ? ' \n(Obs: ' + v.observation + ')' : ''}`
+        : (v.observation ? `Obs: ${v.observation}` : '-'),
       v.address,
       dateStr
     ];
@@ -84,7 +98,7 @@ const PDFReportGenerator = (visitors: Visitor[], category: string, period: strin
   
   autoTable(doc, {
     startY: 35,
-    head: [['#', 'Nome', 'Telefone', 'Grupo', 'Idade', 'Sexo', 'Nasc.', 'Célula/Convidado', 'Mora Junto', 'Pedido Oração', 'Endereço', 'Data de Reg.']],
+    head: [['#', 'Nome', 'Telefone', 'Grupo', 'Idade', 'Sexo', 'Nasc.', 'Célula/Convidado', 'Mora Junto', 'Pedido Oração / Obs.', 'Endereço', 'Data de Reg.']],
     body: tableData,
     theme: 'striped',
     headStyles: { fillColor: [30, 58, 138] },
@@ -117,7 +131,21 @@ const TXTReportGenerator = (visitors: Visitor[], category: string, period: strin
   
   let content = separator;
   content += `RELATÓRIO DE VISITANTES - IP IPCC\n`;
-  content += `Categoria: ${category.toUpperCase()} | Período: ${period === 'all' ? 'Todos' : (period === 'weekly' ? 'Últimos 7 dias' : 'Últimos 30 dias')}\n`;
+
+  const months = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
+  let periodLabel = 'Todos';
+  if (period === 'weekly') periodLabel = 'Últimos 7 dias';
+  else if (period === 'monthly') periodLabel = 'Últimos 30 dias';
+  else if (period.startsWith('custom:')) {
+    const [, month, year] = period.split(':');
+    const mIndex = parseInt(month, 10) - 1;
+    periodLabel = `${months[mIndex] || month} de ${year}`;
+  }
+
+  content += `Categoria: ${category.toUpperCase()} | Período: ${periodLabel}\n`;
   content += `Total de Visitantes: ${visitors.length}\n`;
   content += `Gerado em: ${new Date().toLocaleString('pt-BR')}\n`;
   content += separator + "\n";
@@ -149,6 +177,9 @@ const TXTReportGenerator = (visitors: Visitor[], category: string, period: strin
     content += `   Endereço: ${v.address || 'Não inf.'}\n`;
     if (v.prayerRequest) {
       content += `   Pedido de Oração: ${v.prayerRequest}\n`;
+    }
+    if (v.observation) {
+      content += `   Observação: ${v.observation}\n`;
     }
     content += `   Data de Cadastro: ${dateStr}\n`;
     content += lineSeparator + "\n";
@@ -249,7 +280,9 @@ export default function App() {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   // Report filter states
-  const [reportPeriod, setReportPeriod] = useState<'all' | 'weekly' | 'monthly'>('all');
+  const [reportPeriod, setReportPeriod] = useState<'all' | 'weekly' | 'monthly' | 'custom'>('all');
+  const [reportCustomMonth, setReportCustomMonth] = useState<string>((new Date().getMonth() + 1).toString());
+  const [reportCustomYear, setReportCustomYear] = useState<string>(new Date().getFullYear().toString());
   const [reportCategory, setReportCategory] = useState<'homens' | 'mulheres' | 'jovens' | 'todas'>('homens');
   const [visitorSearchTerm, setVisitorSearchTerm] = useState('');
 
@@ -502,9 +535,11 @@ export default function App() {
   const effectiveAdminCategory = currentUserAdminCategory || (user?.email === 'adminnovo@gmail.com' ? 'todas' : null);
 
   const isMasterAdmin = user?.email === 'adminnovo@gmail.com';
-  const allowedVisitors = isMasterAdmin
+  const allowedVisitors = (isMasterAdmin || currentUserProfile?.role === 'admin' || effectiveAdminCategory === 'todas')
     ? visitors
-    : visitors.filter(v => v.createdBy === user?.id);
+    : (effectiveAdminCategory)
+      ? visitors.filter(v => v.category === effectiveAdminCategory || v.createdBy === user?.id)
+      : visitors.filter(v => v.createdBy === user?.id);
 
   const displayVisitors = allowedVisitors.filter(v => {
     if (!visitorSearchTerm) return true;
@@ -531,6 +566,7 @@ export default function App() {
     isMarriedOrLivesTogether: string;
     prayerRequest: string;
     invitedBy: string;
+    observation: string;
   }>({
     name: '',
     phone: '',
@@ -543,7 +579,8 @@ export default function App() {
     category: undefined,
     isMarriedOrLivesTogether: '',
     prayerRequest: '',
-    invitedBy: ''
+    invitedBy: '',
+    observation: ''
   });
 
   useEffect(() => {
@@ -763,7 +800,8 @@ export default function App() {
       invitedBy: visitor.invitedBy || '',
       category: visitor.category,
       isMarriedOrLivesTogether: visitor.isMarriedOrLivesTogether || '',
-      prayerRequest: visitor.prayerRequest || ''
+      prayerRequest: visitor.prayerRequest || '',
+      observation: visitor.observation || ''
     });
     setShowCategoryStep(false);
     setView('register');
@@ -773,7 +811,7 @@ export default function App() {
   const handleCancelEdit = () => {
     setEditingId(null);
     setShowCategoryStep(true);
-    setFormData({ name: '', phone: '', address: '', age: '', gender: '', birthDate: '', participatesInCell: '', cellLeader: '', category: undefined, isMarriedOrLivesTogether: '', prayerRequest: '', invitedBy: '' });
+    setFormData({ name: '', phone: '', address: '', age: '', gender: '', birthDate: '', participatesInCell: '', cellLeader: '', category: undefined, isMarriedOrLivesTogether: '', prayerRequest: '', invitedBy: '', observation: '' });
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
@@ -802,7 +840,7 @@ export default function App() {
         setMessage({ type: 'success', text: 'Visitante cadastrado com sucesso!' });
       }
 
-      setFormData({ name: '', phone: '', address: '', age: '', gender: '', birthDate: '', participatesInCell: '', cellLeader: '', category: undefined, isMarriedOrLivesTogether: '', prayerRequest: '', invitedBy: '' });
+      setFormData({ name: '', phone: '', address: '', age: '', gender: '', birthDate: '', participatesInCell: '', cellLeader: '', category: undefined, isMarriedOrLivesTogether: '', prayerRequest: '', invitedBy: '', observation: '' });
       setEditingId(null);
       setShowCategoryStep(true);
       fetchVisitors();
@@ -827,19 +865,32 @@ export default function App() {
 
     // Filter by period
     if (reportPeriod !== 'all') {
-      const now = new Date();
-      const limitDate = new Date();
       if (reportPeriod === 'weekly') {
-        limitDate.setDate(now.getDate() - 7);
+        const limitDate = new Date();
+        limitDate.setDate(limitDate.getDate() - 7);
+        filtered = filtered.filter(v => {
+          if (!v.createdAt) return false;
+          const date = v.createdAt.seconds ? new Date(v.createdAt.seconds * 1000) : new Date(v.createdAt);
+          return date >= limitDate;
+        });
       } else if (reportPeriod === 'monthly') {
-        limitDate.setDate(now.getDate() - 30);
-      }
+        const limitDate = new Date();
+        limitDate.setDate(limitDate.getDate() - 30);
+        filtered = filtered.filter(v => {
+          if (!v.createdAt) return false;
+          const date = v.createdAt.seconds ? new Date(v.createdAt.seconds * 1000) : new Date(v.createdAt);
+          return date >= limitDate;
+        });
+      } else if (reportPeriod === 'custom') {
+        const targetMonth = parseInt(reportCustomMonth, 10) - 1; // 0-11
+        const targetYear = parseInt(reportCustomYear, 10);
 
-      filtered = filtered.filter(v => {
-        if (!v.createdAt) return false;
-        const date = v.createdAt.seconds ? new Date(v.createdAt.seconds * 1000) : new Date(v.createdAt);
-        return date >= limitDate;
-      });
+        filtered = filtered.filter(v => {
+          if (!v.createdAt) return false;
+          const date = v.createdAt.seconds ? new Date(v.createdAt.seconds * 1000) : new Date(v.createdAt);
+          return date.getMonth() === targetMonth && date.getFullYear() === targetYear;
+        });
+      }
     }
 
     if (filtered.length === 0) {
@@ -847,10 +898,14 @@ export default function App() {
       return;
     }
 
+    const finalPeriodParam = reportPeriod === 'custom' 
+      ? `custom:${reportCustomMonth}:${reportCustomYear}` 
+      : reportPeriod;
+
     if (type === 'pdf') {
-      PDFReportGenerator(filtered, reportCategory, reportPeriod);
+      PDFReportGenerator(filtered, reportCategory, finalPeriodParam);
     } else {
-      TXTReportGenerator(filtered, reportCategory, reportPeriod);
+      TXTReportGenerator(filtered, reportCategory, finalPeriodParam);
     }
   };
 
@@ -1587,6 +1642,20 @@ export default function App() {
                         </div>
                       </div>
 
+                      <div className="space-y-1 sm:space-y-2">
+                        <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Observações do Visitante (Opcional)</label>
+                        <div className="relative">
+                          <FileText className="absolute left-4 top-4 text-slate-300 w-4 h-4 sm:w-5 sm:h-5" />
+                          <textarea 
+                            rows={3}
+                            value={formData.observation}
+                            onChange={(e) => setFormData({...formData, observation: e.target.value})}
+                            placeholder="Algum detalhe complementar sobre a visita, observação extra ou notas..."
+                            className="input-field pl-10 sm:pl-12 pt-3 sm:pt-4 resize-none text-sm sm:text-base"
+                          />
+                        </div>
+                      </div>
+
                       <button 
                         disabled={isSubmitting}
                         className="w-full btn-primary h-14 sm:h-16 group"
@@ -1695,8 +1764,8 @@ export default function App() {
                         </div>
                         <div>
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nível de Acesso</label>
-                          <div className={`grid gap-2 mt-2 ${user?.email === 'adminnovo@gmail.com' ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-1'}`}>
-                            {(user?.email === 'adminnovo@gmail.com' ? [
+                          <div className={`grid gap-2 mt-2 ${isMasterAdmin ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-1'}`}>
+                            {(isMasterAdmin ? [
                               { id: 'user', label: 'Visitador' },
                               { id: 'homens', label: 'Admin Homem' },
                               { id: 'mulheres', label: 'Admin Mulher' },
@@ -1707,7 +1776,7 @@ export default function App() {
                               <button
                                 key={role.id}
                                 type="button"
-                                disabled={user?.email !== 'adminnovo@gmail.com' && role.id !== 'user'}
+                                disabled={!isMasterAdmin && role.id !== 'user'}
                                 onClick={() => setAdminNewUserCategory(role.id as any)}
                                 className={`py-2 px-1 rounded-xl text-[9px] font-black uppercase tracking-tighter border-2 transition-all ${
                                   adminNewUserCategory === role.id ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
@@ -1769,7 +1838,7 @@ export default function App() {
                         <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Equipe Cadastrada</h3>
                       </div>
                       <div className="flex items-center gap-2">
-                        {user?.email === 'adminnovo@gmail.com' && (
+                        {isMasterAdmin && (
                           <button 
                             onClick={handleAdminDeleteByEmail}
                             className="mr-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold rounded-xl transition-all flex items-center gap-2"
@@ -1819,23 +1888,25 @@ DROP POLICY IF EXISTS "Perfis visíveis para todos" ON public.profiles;
 DROP POLICY IF EXISTS "Usuários podem criar próprio perfil" ON public.profiles;
 DROP POLICY IF EXISTS "Usuários podem editar próprio perfil" ON public.profiles;
 DROP POLICY IF EXISTS "Admins master podem deletar" ON public.profiles;
+DROP POLICY IF EXISTS "Leitura pública para autenticados" ON public.profiles;
+DROP POLICY IF EXISTS "Inserção pelo próprio usuário" ON public.profiles;
+DROP POLICY IF EXISTS "Edição pelo próprio usuário ou Master" ON public.profiles;
+DROP POLICY IF EXISTS "Deleção por Master" ON public.profiles;
+DROP POLICY IF EXISTS "Gerenciar perfis" ON public.profiles;
 
 -- 4. Criar novas políticas robustas
-CREATE POLICY "Leitura pública para autenticados" ON public.profiles
+CREATE POLICY "Leitura de perfis para autenticados" ON public.profiles
   FOR SELECT TO authenticated USING (true);
 
-CREATE POLICY "Inserção pelo próprio usuário" ON public.profiles
-  FOR INSERT WITH CHECK (auth.uid() = id);
-
-CREATE POLICY "Edição pelo próprio usuário ou Master" ON public.profiles
-  FOR UPDATE USING (
+CREATE POLICY "Gerenciar perfis" ON public.profiles
+  FOR ALL TO authenticated USING (
     auth.uid() = id OR 
-    (auth.jwt() ->> 'email' = 'adminnovo@gmail.com')
-  );
-
-CREATE POLICY "Deleção por Master" ON public.profiles
-  FOR DELETE USING (
-    auth.jwt() ->> 'email' = 'adminnovo@gmail.com'
+    (auth.jwt() ->> 'email' = 'adminnovo@gmail.com') OR
+    (auth.jwt() -> 'raw_user_meta_data' ->> 'admin_category') IS NOT NULL
+  ) WITH CHECK (
+    auth.uid() = id OR 
+    (auth.jwt() ->> 'email' = 'adminnovo@gmail.com') OR
+    (auth.jwt() -> 'raw_user_meta_data' ->> 'admin_category') IS NOT NULL
   );
 
 -- 5. SCRIPT PARA APAGAR TODOS USUÁRIOS EXCETO MASTER
@@ -1904,7 +1975,7 @@ CREATE POLICY "Deleção por Master" ON public.profiles
                                 </td>
                                 <td className="py-4 px-2 text-right">
                                   <div className="flex items-center justify-end gap-2">
-                                    {user?.email === 'adminnovo@gmail.com' && (
+                                    {isMasterAdmin && (
                                       <button 
                                         onClick={() => handleAdminChangePassword(p.id!)}
                                         disabled={isChangingPassword === p.id}
@@ -1923,7 +1994,7 @@ CREATE POLICY "Deleção por Master" ON public.profiles
                                     </button>
                                     <button 
                                       onClick={() => {
-                                        if (user?.email === 'adminnovo@gmail.com') {
+                                        if (isMasterAdmin) {
                                           handleAdminDeleteUser(p.id!, p.email);
                                         } else {
                                           handleDeleteUser(p.id!);
@@ -1931,7 +2002,7 @@ CREATE POLICY "Deleção por Master" ON public.profiles
                                       }}
                                       disabled={isDeletingUser === p.id}
                                       className="p-2 text-rose-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all disabled:opacity-50"
-                                      title={user?.email === 'adminnovo@gmail.com' ? "Excluir conta permanentemente" : "Remover usuário da lista"}
+                                      title={isMasterAdmin ? "Excluir conta permanentemente" : "Remover usuário da lista"}
                                     >
                                       {isDeletingUser === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                                     </button>
@@ -1985,7 +2056,8 @@ CREATE POLICY "Deleção por Master" ON public.profiles
                               {[
                                 { id: 'all', label: 'Tudo' },
                                 { id: 'weekly', label: 'Semanal' },
-                                { id: 'monthly', label: 'Mensal' }
+                                { id: 'monthly', label: 'Mensal' },
+                                { id: 'custom', label: 'Escolher Mês/Ano' }
                               ].map((p) => (
                                 <button
                                   key={p.id}
@@ -1996,6 +2068,53 @@ CREATE POLICY "Deleção por Master" ON public.profiles
                                 </button>
                               ))}
                             </div>
+
+                            <AnimatePresence>
+                              {reportPeriod === 'custom' && (
+                                <motion.div 
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: 'auto' }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  className="pt-2 overflow-hidden"
+                                >
+                                  <div className="bg-slate-50/70 rounded-2xl p-4 border border-slate-100 flex gap-4 items-center w-full">
+                                    <div className="flex-1">
+                                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-1.5 ml-1">Mês</label>
+                                      <select
+                                        value={reportCustomMonth}
+                                        onChange={(e) => setReportCustomMonth(e.target.value)}
+                                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-600 transition-all cursor-pointer shadow-sm"
+                                      >
+                                        <option value="1">Janeiro</option>
+                                        <option value="2">Fevereiro</option>
+                                        <option value="3">Março</option>
+                                        <option value="4">Abril</option>
+                                        <option value="5">Maio</option>
+                                        <option value="6">Junho</option>
+                                        <option value="7">Julho</option>
+                                        <option value="8">Agosto</option>
+                                        <option value="9">Setembro</option>
+                                        <option value="10">Outubro</option>
+                                        <option value="11">Novembro</option>
+                                        <option value="12">Dezembro</option>
+                                      </select>
+                                    </div>
+                                    <div className="w-[100px]">
+                                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-1.5 ml-1">Ano</label>
+                                      <input
+                                        type="number"
+                                        min="2000"
+                                        max="2100"
+                                        placeholder="2026"
+                                        value={reportCustomYear}
+                                        onChange={(e) => setReportCustomYear(e.target.value)}
+                                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-600 transition-all shadow-sm"
+                                      />
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
                           </div>
 
                           {/* Category Filter */}
@@ -2005,7 +2124,7 @@ CREATE POLICY "Deleção por Master" ON public.profiles
                               <span>Filtrar por Grupo</span>
                             </div>
                             <div className="flex flex-wrap gap-2">
-                              {isUserAdmin && user?.email !== 'adminnovo@gmail.com' ? (
+                              {isUserAdmin && !isMasterAdmin ? (
                                 <div className="px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest bg-blue-600 text-white border-2 border-blue-600 shadow-lg shadow-blue-200">
                                   {effectiveAdminCategory}
                                 </div>
@@ -2109,6 +2228,16 @@ CREATE POLICY "Deleção por Master" ON public.profiles
                                         <p className="text-[10px] text-slate-400 mt-0.5">
                                           Idade: {visitor.age || 'Não inf.'} | {visitor.gender || 'Não inf.'}
                                         </p>
+                                        {visitor.observation && (
+                                          <div className="mt-1">
+                                            <span 
+                                              title={visitor.observation}
+                                              className="text-[10px] bg-slate-100/90 text-slate-600 px-2 py-0.5 rounded-md font-semibold border border-slate-200/50 inline-block max-w-[200px] truncate"
+                                            >
+                                              Obs: {visitor.observation}
+                                            </span>
+                                          </div>
+                                        )}
                                       </div>
                                     </td>
                                     <td className="py-4">

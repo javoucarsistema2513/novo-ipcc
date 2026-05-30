@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS public.visitors (
   category TEXT,
   is_married_or_lives_together TEXT,
   prayer_request TEXT,
+  observation TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   created_by UUID REFERENCES auth.users(id) NOT NULL
 );
@@ -45,6 +46,10 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='visitors' AND column_name='birth_date') THEN
     ALTER TABLE public.visitors ADD COLUMN birth_date DATE;
   END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='visitors' AND column_name='observation') THEN
+    ALTER TABLE public.visitors ADD COLUMN observation TEXT;
+  END IF;
 END $$;
 
 -- 4. Habilitar RLS
@@ -55,13 +60,22 @@ ALTER TABLE public.visitors ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Permitir leitura de perfis para usuários autenticados" ON public.profiles;
 DROP POLICY IF EXISTS "Usuários podem gerenciar seus próprios perfis" ON public.profiles;
 DROP POLICY IF EXISTS "Master admins podem gerenciar tudo em perfis" ON public.profiles;
+DROP POLICY IF EXISTS "Equipe pode ver perfis" ON public.profiles;
+DROP POLICY IF EXISTS "Gerenciar conta própria" ON public.profiles;
+DROP POLICY IF EXISTS "Master admin total" ON public.profiles;
+DROP POLICY IF EXISTS "Admins podem gerenciar perfis" ON public.profiles;
+DROP POLICY IF EXISTS "Gerenciar perfis" ON public.profiles;
 
 CREATE POLICY "Equipe pode ver perfis" ON public.profiles FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Gerenciar conta própria" ON public.profiles FOR ALL TO authenticated USING (auth.uid() = id);
-CREATE POLICY "Master admin total" ON public.profiles FOR ALL TO authenticated USING (
-  auth.jwt() ->> 'email' = 'adminnovo@gmail.com'
+
+CREATE POLICY "Gerenciar perfis" ON public.profiles FOR ALL TO authenticated USING (
+  auth.uid() = id 
+  OR auth.jwt() ->> 'email' = 'adminnovo@gmail.com'
+  OR (auth.jwt() -> 'raw_user_meta_data' ->> 'admin_category') IS NOT NULL
 ) WITH CHECK (
-  auth.jwt() ->> 'email' = 'adminnovo@gmail.com'
+  auth.uid() = id 
+  OR auth.jwt() ->> 'email' = 'adminnovo@gmail.com'
+  OR (auth.jwt() -> 'raw_user_meta_data' ->> 'admin_category') IS NOT NULL
 );
 
 -- 6. Limpar e Recriar Políticas para VISITORS
@@ -69,13 +83,20 @@ DROP POLICY IF EXISTS "Permitir leitura para usuários autenticados" ON public.v
 DROP POLICY IF EXISTS "Permitir inserção para usuários autenticados" ON public.visitors;
 DROP POLICY IF EXISTS "Permitir deleção para quem criou ou master admin" ON public.visitors;
 DROP POLICY IF EXISTS "Permitir atualização para quem criou ou master admin" ON public.visitors;
+DROP POLICY IF EXISTS "Ver todos visitantes" ON public.visitors;
+DROP POLICY IF EXISTS "Cadastrar visitante" ON public.visitors;
+DROP POLICY IF EXISTS "Deletar / Editar permissão master" ON public.visitors;
+DROP POLICY IF EXISTS "Deletar / Editar visitantes" ON public.visitors;
+DROP POLICY IF EXISTS "Gerenciar visitante" ON public.visitors;
 
-CREATE POLICY "Ver todos visitantes" ON public.visitors FOR SELECT TO authenticated USING (
-  auth.uid() = created_by OR auth.jwt() ->> 'email' = 'adminnovo@gmail.com'
-);
-CREATE POLICY "Cadastrar visitante" ON public.visitors FOR INSERT TO authenticated WITH CHECK (auth.uid() = created_by);
-CREATE POLICY "Deletar / Editar permissão master" ON public.visitors FOR ALL TO authenticated USING (
-  auth.uid() = created_by OR auth.jwt() ->> 'email' = 'adminnovo@gmail.com'
+CREATE POLICY "Ver todos visitantes" ON public.visitors FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Gerenciar visitante" ON public.visitors FOR ALL TO authenticated USING (
+  auth.uid() = created_by 
+  OR auth.jwt() ->> 'email' = 'adminnovo@gmail.com'
+  OR (auth.jwt() -> 'raw_user_meta_data' ->> 'admin_category') IS NOT NULL
 ) WITH CHECK (
-  auth.uid() = created_by OR auth.jwt() ->> 'email' = 'adminnovo@gmail.com'
+  auth.uid() = created_by 
+  OR auth.jwt() ->> 'email' = 'adminnovo@gmail.com'
+  OR (auth.jwt() -> 'raw_user_meta_data' ->> 'admin_category') IS NOT NULL
 );

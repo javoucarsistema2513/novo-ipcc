@@ -37,6 +37,7 @@ export const visitorService = {
             is_married_or_lives_together: visitorData.isMarriedOrLivesTogether || null,
             prayer_request: visitorData.prayerRequest || null,
             invited_by: visitorData.invitedBy || null,
+            observation: visitorData.observation || null,
             created_by: finalUserId,
           }
         ])
@@ -64,6 +65,7 @@ export const visitorService = {
         isMarriedOrLivesTogether: data.is_married_or_lives_together,
         prayerRequest: data.prayer_request,
         invitedBy: data.invited_by,
+        observation: data.observation,
         createdAt: { seconds: new Date(data.created_at).getTime() / 1000 },
         createdBy: data.created_by
       } as Visitor;
@@ -97,6 +99,7 @@ export const visitorService = {
         isMarriedOrLivesTogether: v.is_married_or_lives_together,
         prayerRequest: v.prayer_request,
         invitedBy: v.invited_by,
+        observation: v.observation,
         createdAt: { seconds: new Date(v.created_at).getTime() / 1000 },
         createdBy: v.created_by
       })) as Visitor[];
@@ -138,6 +141,7 @@ export const visitorService = {
           is_married_or_lives_together: visitorData.isMarriedOrLivesTogether || null,
           prayer_request: visitorData.prayerRequest || null,
           invited_by: visitorData.invitedBy || null,
+          observation: visitorData.observation || null,
         })
         .eq('id', id)
         .select()
@@ -162,6 +166,7 @@ export const visitorService = {
           isMarriedOrLivesTogether: data.is_married_or_lives_together,
           prayerRequest: data.prayer_request,
           invitedBy: data.invited_by,
+          observation: data.observation,
           createdAt: { seconds: new Date(data.created_at).getTime() / 1000 },
           createdBy: data.created_by
         } as Visitor
