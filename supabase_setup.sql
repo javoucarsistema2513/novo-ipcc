@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   display_name TEXT,
   admin_category TEXT CHECK (admin_category IN ('homens', 'mulheres', 'jovens', 'todas')),
   role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin')),
+  created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -49,6 +50,10 @@ BEGIN
 
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='visitors' AND column_name='observation') THEN
     ALTER TABLE public.visitors ADD COLUMN observation TEXT;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='profiles' AND column_name='created_by') THEN
+    ALTER TABLE public.profiles ADD COLUMN created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL;
   END IF;
 END $$;
 

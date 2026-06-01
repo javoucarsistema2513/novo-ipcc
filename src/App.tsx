@@ -499,7 +499,8 @@ export default function App() {
             email: adminNewUserEmail,
             display_name: adminNewUserDisplayName,
             admin_category: adminNewUserCategory === 'user' ? null : adminNewUserCategory,
-            role: adminNewUserCategory === 'user' ? 'user' : 'admin'
+            role: adminNewUserCategory === 'user' ? 'user' : 'admin',
+            created_by: user?.id
           });
         }
 
@@ -535,11 +536,9 @@ export default function App() {
   const effectiveAdminCategory = currentUserAdminCategory || (user?.email === 'adminnovo@gmail.com' ? 'todas' : null);
 
   const isMasterAdmin = user?.email === 'adminnovo@gmail.com';
-  const allowedVisitors = (isMasterAdmin || currentUserProfile?.role === 'admin' || effectiveAdminCategory === 'todas')
+  const allowedVisitors = isMasterAdmin
     ? visitors
-    : (effectiveAdminCategory)
-      ? visitors.filter(v => v.category === effectiveAdminCategory || v.createdBy === user?.id)
-      : visitors.filter(v => v.createdBy === user?.id);
+    : visitors.filter(v => v.createdBy === user?.id);
 
   const displayVisitors = allowedVisitors.filter(v => {
     if (!visitorSearchTerm) return true;
@@ -550,6 +549,10 @@ export default function App() {
       (v.invitedBy && v.invitedBy.toLowerCase().includes(term))
     );
   });
+
+  const displayProfiles = isMasterAdmin
+    ? profiles
+    : profiles.filter(p => p.created_by === user?.id || p.id === user?.id);
 
   // Visitor form states
   const [showCategoryStep, setShowCategoryStep] = useState(true);
@@ -1877,6 +1880,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   display_name TEXT,
   admin_category TEXT,
   role TEXT DEFAULT 'user',
+  created_by UUID REFERENCES auth.users ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
@@ -1946,12 +1950,12 @@ CREATE POLICY "Gerenciar perfis" ON public.profiles
                                 </div>
                               </td>
                             </tr>
-                          ) : profiles.length === 0 ? (
+                          ) : displayProfiles.length === 0 ? (
                             <tr>
                               <td colSpan={5} className="py-10 text-center text-slate-400 font-medium">Nenhum usuário listado.</td>
                             </tr>
                           ) : (
-                            profiles.map((p) => (
+                            displayProfiles.map((p) => (
                               <tr key={p.id} className="hover:bg-slate-50 transition-colors">
                                 <td className="py-4 px-2">
                                   <span className="font-mono text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md">

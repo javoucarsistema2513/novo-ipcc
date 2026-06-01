@@ -6,6 +6,7 @@ export interface UserProfile {
   display_name: string;
   admin_category: 'homens' | 'mulheres' | 'jovens' | null;
   role: 'user' | 'admin';
+  created_by?: string | null;
   created_at?: string;
 }
 
