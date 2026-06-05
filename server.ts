@@ -113,11 +113,72 @@ app.post("/api/admin/delete-user", verifyMasterAdmin, async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
 
-    console.log("Remoção concluída com sucesso.");
+    console.log("Remoção concluída com sucesso.");
     res.json({ message: "Usuário removido da autenticação com sucesso!" });
   } catch (err: any) {
     console.error("Erro na rota delete-user:", err);
     res.status(500).json({ error: err.message || "Erro ao remover usuário" });
+  }
+});
+
+// API route to create user (Master Admin only)
+app.post("/api/admin/create-user", verifyMasterAdmin, async (req, res) => {
+  const { email, password, displayName, adminCategory, createdBy } = req.body;
+  console.log(`Solicitação de criação de acesso: ${email}`);
+
+  if (!email || !password || !displayName) {
+    return res.status(400).json({ error: "E-mail, senha e nome completo são obrigatórios." });
+  }
+
+  if (!supabaseServiceKey) {
+    return res.status(500).json({ error: "Configuração do servidor incompleta: Chave de serviço Admin não encontrada." });
+  }
+
+  try {
+    // 1. Create user in Supabase Auth via Admin Client (forces confirmation)
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        display_name: displayName,
+        admin_category: adminCategory === 'user' ? null : adminCategory,
+      }
+    });
+
+    if (authError) {
+      console.error("Erro ao criar usuário no Auth:", authError);
+      return res.status(400).json({ error: authError.message });
+    }
+
+    if (!authData.user) {
+      return res.status(500).json({ error: "Resposta inesperada do Supabase ao criar usuário." });
+    }
+
+    // 2. Insert into profiles table
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .insert({
+        id: authData.user.id,
+        email: email,
+        display_name: displayName,
+        admin_category: adminCategory === 'user' ? null : adminCategory,
+        role: adminCategory === 'user' ? 'user' : 'admin',
+        created_by: createdBy || null
+      });
+
+    if (profileError) {
+      console.error("Erro ao inserir perfil no banco de dados:", profileError);
+      // Attempt cleanup to prevent orphaned Auth record
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      return res.status(400).json({ error: `Erro ao criar perfil de banco de dados: ${profileError.message}` });
+    }
+
+    console.log(`Usuário ${email} cadastrado com sucesso.`);
+    res.json({ message: "Usuário cadastrado com sucesso!", user: authData.user });
+  } catch (err: any) {
+    console.error("Erro na rota create-user:", err);
+    res.status(500).json({ error: err.message || "Erro ao criar usuário" });
   }
 });
 

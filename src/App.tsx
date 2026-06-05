@@ -459,16 +459,6 @@ export default function App() {
     setAdminCreateLoading(true);
     setAdminCreateMessage(null);
     try {
-      // Create a temporary client that doesn't persist the session
-      // This prevents the admin from being logged out when creating a new user
-      const tempClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-          detectSessionInUrl: false
-        }
-      });
-
       if (editingProfileId) {
         await userService.updateProfile(editingProfileId, {
           display_name: adminNewUserDisplayName,
@@ -481,27 +471,29 @@ export default function App() {
         });
         setEditingProfileId(null);
       } else {
-        const { data, error } = await tempClient.auth.signUp({
-          email: adminNewUserEmail,
-          password: adminNewUserPassword,
-          options: {
-            data: {
-              display_name: adminNewUserDisplayName,
-              admin_category: adminNewUserCategory === 'user' ? null : adminNewUserCategory,
-            }
-          }
-        });
-        if (error) throw error;
-        
-        if (data.user) {
-          await userService.upsertProfile({
-            id: data.user.id,
+        const session = await supabase.auth.getSession();
+        const token = session.data.session?.access_token;
+
+        if (!token) throw new Error("Sessão Admin não encontrada. Faça login novamente.");
+
+        const response = await fetch('/api/admin/create-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
             email: adminNewUserEmail,
-            display_name: adminNewUserDisplayName,
-            admin_category: adminNewUserCategory === 'user' ? null : adminNewUserCategory,
-            role: adminNewUserCategory === 'user' ? 'user' : 'admin',
-            created_by: user?.id
-          });
+            password: adminNewUserPassword,
+            displayName: adminNewUserDisplayName,
+            adminCategory: adminNewUserCategory,
+            createdBy: user?.id
+          })
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.error || "Erro ao criar usuário no servidor.");
         }
 
         setAdminCreateMessage({ 
