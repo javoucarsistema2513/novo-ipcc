@@ -1305,7 +1305,7 @@ WHERE id = '${userId}';`
           className="relative z-10 bg-white/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl p-5 sm:p-8 max-w-[310px] sm:max-w-[380px] w-full mx-auto border border-white/50"
         >
           <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center mx-auto mb-2 sm:mb-4 overflow-hidden border border-slate-100 shadow-sm bg-white p-1">
-            <img src="/icon.png" alt="Logo IPCC" className="w-full h-full object-contain rounded-xl" />
+            <img src="/icon.png" alt="Logo IPCC" referrerPolicy="no-referrer" className="w-full h-full object-contain rounded-xl" />
           </div>
           
           <h1 className="text-2xl sm:text-4xl font-black text-gray-900 text-center mb-1 tracking-tighter">Consolidação</h1>
@@ -1422,7 +1422,7 @@ WHERE id = '${userId}';`
       <aside className="hidden sm:flex flex-col w-20 lg:w-64 bg-white border-r border-slate-200 shrink-0 z-30">
         <div className="h-16 flex items-center px-6 gap-3 border-b border-slate-50">
           <div className="w-10 h-10 rounded-xl overflow-hidden border border-slate-100 bg-white p-0.5 shadow-sm">
-            <img src="/icon.png" alt="Logo IPCC" className="w-full h-full object-contain rounded-lg" />
+            <img src="/icon.png" alt="Logo IPCC" referrerPolicy="no-referrer" className="w-full h-full object-contain rounded-lg" />
           </div>
           <h1 className="font-black text-lg text-slate-800 hidden lg:block truncate">IPCC</h1>
         </div>
@@ -1494,7 +1494,7 @@ WHERE id = '${userId}';`
           <header className="sm:hidden flex bg-white/90 backdrop-blur-lg border-b border-slate-100 h-14 shrink-0 z-20 px-4 items-center justify-between sticky top-0">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg overflow-hidden border border-slate-100 bg-white p-0.5 shadow-sm">
-                <img src="/icon.png" alt="Logo IPCC" className="w-full h-full object-contain rounded-md" />
+                <img src="/icon.png" alt="Logo IPCC" referrerPolicy="no-referrer" className="w-full h-full object-contain rounded-md" />
               </div>
               <h1 className="font-black text-base text-slate-900 tracking-tight">IPCC.</h1>
             </div>
@@ -1549,7 +1549,7 @@ WHERE id = '${userId}';`
                     className="mb-12 w-fit mx-auto text-left"
                   >
                     <div className="bg-white p-2.5 rounded-[2rem] w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center mb-8 border border-white/20 shadow-2xl overflow-hidden">
-                      <img src="/icon.png" alt="Logo IPCC" className="w-full h-full object-contain rounded-2xl" />
+                      <img src="/icon.png" alt="Logo IPCC" referrerPolicy="no-referrer" className="w-full h-full object-contain rounded-2xl" />
                     </div>
                     <h2 className="text-4xl sm:text-7xl font-black text-white mb-4 tracking-tighter uppercase leading-none drop-shadow-xl">
                       Consolidação
