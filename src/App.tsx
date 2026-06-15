@@ -334,6 +334,7 @@ export default function App() {
     title: string;
     message: string;
     type?: 'success' | 'error' | 'warning' | 'info';
+    codeBlock?: string;
     onClose?: () => void;
   } | null>(null);
 
@@ -367,13 +368,14 @@ export default function App() {
     });
   };
 
-  const showAlert = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info', onClose?: () => void) => {
+  const showAlert = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info', onClose?: () => void, codeBlock?: string) => {
     setCustomAlert({
       show: true,
       title,
       message,
       type,
-      onClose
+      onClose,
+      codeBlock
     });
   };
 
@@ -399,6 +401,10 @@ export default function App() {
             body: JSON.stringify({ userId })
           });
 
+          if (response.status === 405 || response.status === 404) {
+            throw new Error("COMO_APLICATIVO_ESTATICO_EM_VERCEL");
+          }
+
           let result;
           const text = await response.text();
           try {
@@ -421,7 +427,22 @@ export default function App() {
           fetchProfiles();
         } catch (err: any) {
           console.error(err);
-          showAlert("Erro ao excluir", err.message || "Erro ao excluir usuário.", "error");
+          if (err.message === "COMO_APLICATIVO_ESTATICO_EM_VERCEL" || err.message?.includes("Failed to fetch") || err.message?.includes("fetch")) {
+            showAlert(
+              "Ambiente Estático (Vercel)",
+              `Não foi possível deletar via API pois seu app está publicado de forma estática na Vercel (onde APIs Express não rodam). Resolva copiando e colando este código SQL no SQL Editor do seu Supabase Dashboard:`,
+              "warning",
+              () => {},
+              `-- SCRIPT PARA DELETAR O USUÁRIO ${email}
+-- 1. Copie todo o código abaixo:
+DELETE FROM auth.users WHERE id = '${userId}';
+
+-- 2. No Supabase Dashboard, acesse "SQL Editor"
+-- 3. Crie uma query, cole e clique em "Run" (Executar).`
+            );
+          } else {
+            showAlert("Erro ao excluir", err.message || "Erro ao excluir usuário.", "error");
+          }
         } finally {
           setIsDeletingUser(null);
         }
@@ -460,6 +481,10 @@ export default function App() {
                 body: JSON.stringify({ email: email.trim() })
               });
 
+              if (response.status === 405 || response.status === 404) {
+                throw new Error("COMO_APLICATIVO_ESTATICO_EM_VERCEL");
+              }
+
               let result;
               const text = await response.text();
               try {
@@ -479,7 +504,19 @@ export default function App() {
               fetchProfiles();
             } catch (err: any) {
               console.error(err);
-              showAlert("Erro ao excluir", err.message || "Erro ao excluir conta.", "error");
+              if (err.message === "COMO_APLICATIVO_ESTATICO_EM_VERCEL" || err.message?.includes("Failed to fetch") || err.message?.includes("fetch")) {
+                const targetEmail = email.trim();
+                showAlert(
+                  "Ambiente Estático (Vercel)",
+                  `O app na Vercel não possui servidor ativo para APIs Express (/api/admin/delete-by-email). Você pode executar este comando no SQL Editor do Supabase para apagar a conta por e-mail:`,
+                  "warning",
+                  () => {},
+                  `-- SCRIPT PARA REMOVER O E-MAIL: ${targetEmail}
+DELETE FROM auth.users WHERE email = '${targetEmail}';`
+                );
+              } else {
+                showAlert("Erro ao excluir", err.message || "Erro ao excluir conta.", "error");
+              }
             } finally {
               setAdminCreateLoading(false);
             }
@@ -517,13 +554,37 @@ export default function App() {
             body: JSON.stringify({ userId, newPassword })
           });
 
-          const result = await response.json();
+          if (response.status === 405 || response.status === 404) {
+            throw new Error("COMO_APLICATIVO_ESTATICO_EM_VERCEL");
+          }
+
+          let result;
+          const text = await response.text();
+          try {
+            result = text ? JSON.parse(text) : {};
+          } catch (e) {
+            throw new Error(`Resposta do servidor (${response.status}): ${text.substring(0, 100)}`);
+          }
+
           if (!response.ok) throw new Error(result.error || "Erro ao alterar senha.");
 
           showAlert("Sucesso", "Senha alterada com sucesso!", "success");
         } catch (err: any) {
           console.error(err);
-          showAlert("Erro ao Alterar Senha", err.message || "Erro ao conectar com o servidor.", "error");
+          if (err.message === "COMO_APLICATIVO_ESTATICO_EM_VERCEL" || err.message?.includes("Failed to fetch") || err.message?.includes("fetch")) {
+            showAlert(
+              "Ambiente Estático (Vercel)",
+              "Não foi possível processar a API de alteração de senha porque seu app na Vercel está publicado como frontend estático. Mas você pode redefinir esta senha executando este comando no SQL Editor do Supabase:",
+              "warning",
+              () => {},
+              `-- SCRIPT PARA REDEFINIR SENHA DO USUÁRIO NO SUPABASE:
+UPDATE auth.users 
+SET encrypted_password = crypt('${newPassword}', gen_salt('bf')) 
+WHERE id = '${userId}';`
+            );
+          } else {
+            showAlert("Erro ao Alterar Senha", err.message || "Erro ao conectar com o servidor.", "error");
+          }
         } finally {
           setIsChangingPassword(null);
         }
@@ -537,6 +598,9 @@ export default function App() {
     setProfilesLoading(true);
     setProfilesError(null);
     try {
+      if (!import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')) {
+        throw new Error("CREDENCIAIS_FALTANDO");
+      }
       const data = await userService.getProfiles();
       const safeData = data || [];
       setProfiles(safeData);
@@ -546,8 +610,12 @@ export default function App() {
       }
     } catch (err: any) {
       console.error('Erro detalhado ao buscar perfis:', err);
-      const errorMessage = err.message || (err.error_description) || JSON.stringify(err);
-      setProfilesError(`Erro de acesso: ${errorMessage}. Verifique se a tabela 'profiles' existe e tem políticas RLS ativas no Supabase.`);
+      if (err.message === "CREDENCIAIS_FALTANDO") {
+        setProfilesError("Erro de acesso: Chaves de API do Supabase não configuradas no ambiente. Certifique-se de preencher as variáveis VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY nas configurações do projeto.");
+      } else {
+        const errorMessage = err.message || (err.error_description) || JSON.stringify(err);
+        setProfilesError(`Erro de acesso: ${errorMessage}. Verifique se a tabela 'profiles' existe e tem políticas RLS ativas no Supabase.`);
+      }
     } finally {
       setProfilesLoading(false);
     }
@@ -575,30 +643,88 @@ export default function App() {
 
         if (!token) throw new Error("Sessão Admin não encontrada. Faça login novamente.");
 
-        const response = await fetch('/api/admin/create-user', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            email: adminNewUserEmail,
-            password: adminNewUserPassword,
-            displayName: adminNewUserDisplayName,
-            adminCategory: adminNewUserCategory,
-            createdBy: user?.id
-          })
-        });
+        let useFallback = false;
+        let response;
+        try {
+          response = await fetch('/api/admin/create-user', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              email: adminNewUserEmail,
+              password: adminNewUserPassword,
+              displayName: adminNewUserDisplayName,
+              adminCategory: adminNewUserCategory,
+              createdBy: user?.id
+            })
+          });
 
-        const result = await response.json();
-        if (!response.ok) {
-          throw new Error(result.error || "Erro ao criar usuário no servidor.");
+          if (response.status === 405 || response.status === 404) {
+            useFallback = true;
+          }
+        } catch (fetchErr) {
+          useFallback = true;
         }
 
-        setAdminCreateMessage({ 
-          type: 'success', 
-          text: 'Usuário criado com sucesso! Ele já aparece na lista abaixo.' 
-        });
+        if (useFallback) {
+          // Fallback para Ambiente Estático (Vercel) usando o tempClient seguro direto do lado do cliente do Supabase
+          const tempClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+              persistSession: false,
+              autoRefreshToken: false,
+              detectSessionInUrl: false
+            }
+          });
+
+          const { data, error } = await tempClient.auth.signUp({
+            email: adminNewUserEmail,
+            password: adminNewUserPassword,
+            options: {
+              data: {
+                display_name: adminNewUserDisplayName,
+                admin_category: adminNewUserCategory === 'user' ? null : adminNewUserCategory,
+              }
+            }
+          });
+
+          if (error) throw error;
+
+          if (data.user) {
+            // Insere manualmente na tabela de perfis para garantir sincronia instantânea
+            await userService.upsertProfile({
+              id: data.user.id,
+              email: adminNewUserEmail,
+              display_name: adminNewUserDisplayName,
+              admin_category: adminNewUserCategory === 'user' ? null : adminNewUserCategory,
+              role: adminNewUserCategory === 'user' ? 'user' : 'admin'
+            });
+          }
+
+          setAdminCreateMessage({ 
+            type: 'success', 
+            text: 'Usuário cadastrado diretamente via Supabase! (Sua hospedagem na Vercel está em modo estático/sem APIs)' 
+          });
+        } else {
+          // Processamento do servidor padrão para ambientes dinâmicos
+          let result;
+          const text = await response!.text();
+          try {
+            result = text ? JSON.parse(text) : {};
+          } catch (e) {
+            throw new Error(`Resposta inválida do servidor (${response!.status}): ${text.substring(0, 100)}`);
+          }
+
+          if (!response!.ok) {
+            throw new Error(result.error || "Erro ao criar usuário no servidor.");
+          }
+
+          setAdminCreateMessage({ 
+            type: 'success', 
+            text: 'Usuário cadastrado com sucesso!' 
+          });
+        }
       }
       
       fetchProfiles();
@@ -1998,6 +2124,7 @@ DROP POLICY IF EXISTS "Inserção pelo próprio usuário" ON public.profiles;
 DROP POLICY IF EXISTS "Edição pelo próprio usuário ou Master" ON public.profiles;
 DROP POLICY IF EXISTS "Deleção por Master" ON public.profiles;
 DROP POLICY IF EXISTS "Gerenciar perfis" ON public.profiles;
+DROP POLICY IF EXISTS "Leitura de perfis para autenticados" ON public.profiles;
 
 -- 4. Criar novas políticas robustas
 CREATE POLICY "Leitura de perfis para autenticados" ON public.profiles
@@ -2014,13 +2141,54 @@ CREATE POLICY "Gerenciar perfis" ON public.profiles
     (auth.jwt() -> 'raw_user_meta_data' ->> 'admin_category') IS NOT NULL
   );
 
--- 5. SCRIPT PARA APAGAR TODOS USUÁRIOS EXCETO MASTER
--- Execute isto no SQL Editor para limpar usuários:
--- DELETE FROM auth.users WHERE email != 'adminnovo@gmail.com';
--- (A tabela public.profiles será limpa automaticamente)
+-- 5. ATIVAR TRIGGER DE SINCRONIZAÇÃO AUTOMÁTICA (CRÍTICO)
+-- Isso garante que qualquer conta criada no painel/Auth seja criada automaticamente em profiles
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, display_name, role, created_at)
+  VALUES (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)),
+    CASE 
+      WHEN new.email = 'adminnovo@gmail.com' THEN 'admin'
+      WHEN (new.raw_user_meta_data->>'admin_category') IS NOT NULL THEN 'admin'
+      ELSE 'user'
+    END,
+    coalesce(new.created_at, now())
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    email = EXCLUDED.email,
+    display_name = coalesce(EXCLUDED.display_name, public.profiles.display_name),
+    role = coalesce(EXCLUDED.role, public.profiles.role);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 6. PERMITIR EXCLUSÃO EM CASCATA DE VISITANTES (OPCIONAL)
--- Execute isto se receber erros de chave estrangeira (foreign key violation) ao tentar remover usuários que cadastraram visitantes:
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- 6. FORÇAR SINCRONIZAÇÃO RETROATIVA DE CONTAS EXISTENTES (CRÍTICO)
+-- Execute isto para copiar todas as contas que já foram criadas anteriormente no Auth:
+INSERT INTO public.profiles (id, email, display_name, role, created_at)
+SELECT 
+  id, 
+  email, 
+  coalesce(raw_user_meta_data->>'display_name', split_part(email, '@', 1)),
+  CASE 
+    WHEN email = 'adminnovo@gmail.com' THEN 'admin'
+    ELSE 'user'
+  END,
+  coalesce(created_at, now())
+FROM auth.users
+ON CONFLICT (id) DO UPDATE SET
+  email = EXCLUDED.email,
+  display_name = coalesce(EXCLUDED.display_name, public.profiles.display_name);
+
+-- 7. PERMITIR EXCLUSÃO EM CASCATA DE VISITANTES
 ALTER TABLE public.visitors 
   DROP CONSTRAINT IF EXISTS visitors_created_by_fkey,
   ADD CONSTRAINT visitors_created_by_fkey 
@@ -2713,11 +2881,17 @@ ALTER TABLE public.visitors
                     }`}>
                       {customAlert.type === 'success' ? <CheckCircle2 className="w-6 h-6" /> : <AlertCircle className="w-6 h-6" />}
                     </div>
-                    <div>
+                    <div className="w-full">
                       <h3 className="text-xl font-black text-slate-800 tracking-tight mb-2">{customAlert.title}</h3>
                       <p className="text-sm font-medium text-slate-500 leading-relaxed">{customAlert.message}</p>
                     </div>
                   </div>
+                  
+                  {customAlert.codeBlock && (
+                    <div className="mt-4 p-4 bg-slate-900 rounded-2xl text-emerald-400 font-mono text-[10px] select-all overflow-x-auto border-2 border-slate-800 shadow-inner max-h-48 text-left leading-relaxed">
+                      <pre className="font-mono">{customAlert.codeBlock}</pre>
+                    </div>
+                  )}
                   
                   <div className="pt-6">
                     <button

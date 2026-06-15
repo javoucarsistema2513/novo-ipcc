@@ -105,3 +105,56 @@ CREATE POLICY "Gerenciar visitante" ON public.visitors FOR ALL TO authenticated 
   OR auth.jwt() ->> 'email' = 'adminnovo@gmail.com'
   OR (auth.jwt() -> 'raw_user_meta_data' ->> 'admin_category') IS NOT NULL
 );
+
+-- 7. ATIVAR TRIGGER DE SINCRONIZAÇÃO AUTOMÁTICA (CRÍTICO)
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, display_name, role, created_at)
+  VALUES (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)),
+    CASE 
+      WHEN new.email = 'adminnovo@gmail.com' THEN 'admin'
+      WHEN (new.raw_user_meta_data->>'admin_category') IS NOT NULL THEN 'admin'
+      ELSE 'user'
+    END,
+    coalesce(new.created_at, now())
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    email = EXCLUDED.email,
+    display_name = coalesce(EXCLUDED.display_name, public.profiles.display_name),
+    role = coalesce(EXCLUDED.role, public.profiles.role);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- 8. FORÇAR SINCRONIZAÇÃO RETROATIVA DE CONTAS EXISTENTES (CRÍTICO)
+INSERT INTO public.profiles (id, email, display_name, role, created_at)
+SELECT 
+  id, 
+  email, 
+  coalesce(raw_user_meta_data->>'display_name', split_part(email, '@', 1)),
+  CASE 
+    WHEN email = 'adminnovo@gmail.com' THEN 'admin'
+    ELSE 'user'
+  END,
+  coalesce(created_at, now())
+FROM auth.users
+ON CONFLICT (id) DO UPDATE SET
+  email = EXCLUDED.email,
+  display_name = coalesce(EXCLUDED.display_name, public.profiles.display_name);
+
+-- 9. ADICIONAR CASCADE DELETE EM VISITANTES (OPCIONAL)
+ALTER TABLE public.visitors 
+  DROP CONSTRAINT IF EXISTS visitors_created_by_fkey,
+  ADD CONSTRAINT visitors_created_by_fkey 
+    FOREIGN KEY (created_by) 
+    REFERENCES auth.users(id) 
+    ON DELETE CASCADE;
