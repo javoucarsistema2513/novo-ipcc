@@ -306,132 +306,231 @@ export default function App() {
   const [isChangingPassword, setIsChangingPassword] = useState<string | null>(null);
   const [isDeletingUser, setIsDeletingUser] = useState<string | null>(null);
 
+  // States for custom modals to prevent iframe freezing
+  const [customConfirm, setCustomConfirm] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm: () => void | Promise<void>;
+    isDanger?: boolean;
+  } | null>(null);
+
+  const [customPrompt, setCustomPrompt] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    placeholder?: string;
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm: (val: string) => void | Promise<void>;
+    defaultValue?: string;
+    inputType?: string;
+  } | null>(null);
+
+  const [customAlert, setCustomAlert] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    type?: 'success' | 'error' | 'warning' | 'info';
+    onClose?: () => void;
+  } | null>(null);
+
+  const [promptInputVal, setPromptInputVal] = useState('');
+  const [dialogLoading, setDialogLoading] = useState(false);
+
+  const showConfirm = (title: string, message: string, onConfirm: () => void | Promise<void>, isDanger = false) => {
+    setCustomConfirm({
+      show: true,
+      title,
+      message,
+      confirmText: 'Confirmar',
+      cancelText: 'Cancelar',
+      onConfirm,
+      isDanger
+    });
+  };
+
+  const showPrompt = (title: string, message: string, placeholder: string, onConfirm: (val: string) => void | Promise<void>, defaultValue = '', inputType = 'text') => {
+    setPromptInputVal(defaultValue);
+    setCustomPrompt({
+      show: true,
+      title,
+      message,
+      placeholder,
+      confirmText: 'Confirmar',
+      cancelText: 'Cancelar',
+      onConfirm,
+      defaultValue,
+      inputType
+    });
+  };
+
+  const showAlert = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info', onClose?: () => void) => {
+    setCustomAlert({
+      show: true,
+      title,
+      message,
+      type,
+      onClose
+    });
+  };
+
   const handleAdminDeleteUser = async (userId: string, email: string) => {
-    if (!window.confirm(`Tem certeza que deseja excluir PERMANENTEMENTE o usuário ${email}? Esta ação removerá o acesso dele ao sistema e não pode ser desfeita.`)) {
-      return;
-    }
+    showConfirm(
+      "Excluir Conta Permanentemente",
+      `Tem certeza que deseja excluir PERMANENTEMENTE o usuário ${email}? Esta ação removerá o acesso dele ao sistema e não pode ser desfeita. Se ele possuir visitantes cadastrados, o acesso dele será revogado mas as fichas de visitantes serão preservadas sob controle da igreja.`,
+      async () => {
+        setIsDeletingUser(userId);
+        try {
+          const session = await supabase.auth.getSession();
+          const token = session.data.session?.access_token;
 
-    setIsDeletingUser(userId);
-    try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
+          if (!token) throw new Error("Sessão não encontrada.");
 
-      if (!token) throw new Error("Sessão não encontrada.");
+          // First delete from auth via our API
+          const response = await fetch('/api/admin/delete-user', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ userId })
+          });
 
-      // First delete from auth via our API
-      const response = await fetch('/api/admin/delete-user', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ userId })
-      });
+          let result;
+          const text = await response.text();
+          try {
+            result = text ? JSON.parse(text) : {};
+          } catch (e) {
+            throw new Error(`Resposta inválida do servidor (${response.status}): ${text.substring(0, 100)}`);
+          }
 
-      let result;
-      const text = await response.text();
-      try {
-        result = text ? JSON.parse(text) : {};
-      } catch (e) {
-        throw new Error(`Resposta inválida do servidor (${response.status}): ${text.substring(0, 100)}`);
-      }
+          if (!response.ok) {
+            if (result.error?.includes("violates foreign key constraint") || result.error?.includes("visitors_created_by_fkey")) {
+              throw new Error("Não é possível excluir este usuário diretamente porque ele possui registros de visitantes associados. No Supabase SQL Editor, você pode rodar um script para cascatear exclusões ou reatribuir o criador dos registros de visitantes.");
+            }
+            throw new Error(result.error || "Erro ao remover conta de acesso.");
+          }
 
-      if (!response.ok && !result.error?.includes("User not found")) {
-        throw new Error(result.error || "Erro ao remover conta de acesso.");
-      }
-
-      // Then delete the profile from DB
-      await userService.deleteProfile(userId);
-      
-      alert(`Usuário ${email} removido com sucesso.`);
-      fetchProfiles();
-    } catch (err: any) {
-      console.error(err);
-      alert(err.message || "Erro ao excluir usuário.");
-    } finally {
-      setIsDeletingUser(null);
-    }
+          // Then delete the profile from DB
+          await userService.deleteProfile(userId);
+          
+          showAlert("Sucesso", `Usuário ${email} removido com sucesso.`, "success");
+          fetchProfiles();
+        } catch (err: any) {
+          console.error(err);
+          showAlert("Erro ao excluir", err.message || "Erro ao excluir usuário.", "error");
+        } finally {
+          setIsDeletingUser(null);
+        }
+      },
+      true // isDanger
+    );
   };
 
-  const handleAdminDeleteByEmail = async () => {
-    const email = window.prompt("Digite o E-MAIL exato que deseja remover do Supabase Auth:");
-    if (!email || !email.includes('@')) {
-      if (email) alert("E-mail inválido.");
-      return;
-    }
+  const handleAdminDeleteByEmail = () => {
+    showPrompt(
+      "Remover Conta por E-mail",
+      "Digite o e-mail exato do usuário que deseja remover DIRETAMENTE do Supabase Auth. Use esta ferramenta para limpar contas marcadas como 'presas' ou duplicadas.",
+      "exemplo@email.com",
+      (email) => {
+        if (!email || !email.includes('@')) {
+          showAlert("E-mail inválido", "Por favor, digite um endereço de e-mail válido contendo '@'.", "warning");
+          return;
+        }
 
-    if (!window.confirm(`ATENÇÃO: Você está prestes a remover o acesso de ${email} DIRETAMENTE do Supabase. Use isso apenas para contas "presas" que não aparecem na lista. Continuar?`)) {
-      return;
-    }
+        showConfirm(
+          "Confirmação de Segurança",
+          `ATENÇÃO: Você está prestes a remover o acesso de ${email} DIRETAMENTE do Supabase. Use isso apenas para contas "presas" que não aparecem na lista. Continuar?`,
+          async () => {
+            setAdminCreateLoading(true);
+            try {
+              const session = await supabase.auth.getSession();
+              const token = session.data.session?.access_token;
+              if (!token) throw new Error("Sessão não encontrada.");
 
-    setAdminCreateLoading(true);
-    try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
-      if (!token) throw new Error("Sessão não encontrada.");
+              const response = await fetch('/api/admin/delete-user-by-email', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ email: email.trim() })
+              });
 
-      const response = await fetch('/api/admin/delete-user-by-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ email: email.trim() })
-      });
+              let result;
+              const text = await response.text();
+              try {
+                result = text ? JSON.parse(text) : {};
+              } catch (e) {
+                throw new Error(`Resposta inválida do servidor (${response.status}): ${text.substring(0, 100)}`);
+              }
 
-      let result;
-      const text = await response.text();
-      try {
-        result = text ? JSON.parse(text) : {};
-      } catch (e) {
-        throw new Error(`Resposta inválida do servidor (${response.status}): ${text.substring(0, 100)}`);
+              if (!response.ok) {
+                if (result.error?.includes("violates foreign key constraint") || result.error?.includes("visitors_created_by_fkey")) {
+                  throw new Error("Não é possível excluir esta conta diretamente porque ela possui visitantes cadastrados no sistema. Reatribua as fichas de visitantes a outro visitador antes de excluí-la.");
+                }
+                throw new Error(result.error || "Erro ao remover conta.");
+              }
+
+              showAlert("Sucesso", result.message || "Conta removida com sucesso!", "success");
+              fetchProfiles();
+            } catch (err: any) {
+              console.error(err);
+              showAlert("Erro ao excluir", err.message || "Erro ao excluir conta.", "error");
+            } finally {
+              setAdminCreateLoading(false);
+            }
+          },
+          true // isDanger
+        );
       }
-
-      if (!response.ok) throw new Error(result.error || "Erro ao remover conta.");
-
-      alert(result.message || "Conta removida com sucesso!");
-      fetchProfiles();
-    } catch (err: any) {
-      console.error(err);
-      alert(err.message || "Erro ao excluir usuário.");
-    } finally {
-      setAdminCreateLoading(false);
-    }
+    );
   };
 
-  const handleAdminChangePassword = async (userId: string) => {
-    const newPassword = window.prompt("Digite a nova senha para este usuário:");
-    if (!newPassword || newPassword.length < 6) {
-      if (newPassword) alert("A senha deve ter pelo menos 6 caracteres.");
-      return;
-    }
+  const handleAdminChangePassword = (userId: string) => {
+    showPrompt(
+      "Alterar Senha do Usuário",
+      "Digite a nova senha desejada para a conta deste usuário (mínimo de 6 caracteres):",
+      "Nova senha (mínimo 6 caracteres)",
+      async (newPassword) => {
+        if (!newPassword || newPassword.length < 6) {
+          showAlert("Senha Inválida", "A senha de conter no mínimo 6 caracteres.", "warning");
+          return;
+        }
 
-    setIsChangingPassword(userId);
-    try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
+        setIsChangingPassword(userId);
+        try {
+          const session = await supabase.auth.getSession();
+          const token = session.data.session?.access_token;
 
-      if (!token) throw new Error("Sessão não encontrada. Faça login novamente.");
+          if (!token) throw new Error("Sessão não encontrada. Faça login novamente.");
 
-      const response = await fetch('/api/admin/change-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ userId, newPassword })
-      });
+          const response = await fetch('/api/admin/change-password', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ userId, newPassword })
+          });
 
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Erro ao alterar senha.");
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || "Erro ao alterar senha.");
 
-      alert("Senha alterada com sucesso!");
-    } catch (err: any) {
-      console.error(err);
-      alert(err.message || "Erro ao conectar com o servidor.");
-    } finally {
-      setIsChangingPassword(null);
-    }
+          showAlert("Sucesso", "Senha alterada com sucesso!", "success");
+        } catch (err: any) {
+          console.error(err);
+          showAlert("Erro ao Alterar Senha", err.message || "Erro ao conectar com o servidor.", "error");
+        } finally {
+          setIsChangingPassword(null);
+        }
+      },
+      '',
+      'password'
+    );
   };
 
   const fetchProfiles = async () => {
@@ -733,16 +832,21 @@ export default function App() {
     }
   };
 
-  const handleDeleteUser = async (id: string) => {
-    if (!window.confirm('Tem certeza que deseja remover este usuário da lista? (Isso não remove o acesso dele do Supabase Auth, apenas da lista de gerenciamento)')) return;
-    try {
-      await userService.deleteProfile(id);
-      fetchProfiles();
-      setMessage({ type: 'success', text: 'Usuário removido da lista.' });
-    } catch (error) {
-      console.error(error);
-      setMessage({ type: 'error', text: 'Erro ao remover usuário.' });
-    }
+  const handleDeleteUser = (id: string) => {
+    showConfirm(
+      "Remover Usuário da Lista",
+      "Tem certeza que deseja remover este usuário da lista? (Isso não removerá as credenciais ou o acesso dele no Supabase Auth, apenas o excluirá da lista de gerenciamento de perfis visível no app).",
+      async () => {
+        try {
+          await userService.deleteProfile(id);
+          fetchProfiles();
+          setMessage({ type: 'success', text: 'Usuário removido da lista.' });
+        } catch (error) {
+          console.error(error);
+          setMessage({ type: 'error', text: 'Erro ao remover usuário.' });
+        }
+      }
+    );
   };
 
   const handleEditProfile = (profile: UserProfile) => {
@@ -760,17 +864,22 @@ export default function App() {
     setCopiedLink(false);
   };
 
-  const handleDeleteVisitor = async (id: string) => {
-    if (!window.confirm('Tem certeza que deseja remover este visitante?')) return;
-    
-    try {
-      await visitorService.deleteVisitor(id);
-      setMessage({ type: 'success', text: 'Visitante removido com sucesso!' });
-      fetchVisitors();
-    } catch (error) {
-      console.error(error);
-      setMessage({ type: 'error', text: 'Erro ao remover visitante.' });
-    }
+  const handleDeleteVisitor = (id: string) => {
+    showConfirm(
+      "Excluir Registro de Visitante",
+      "Tem certeza que deseja remover definitivamente os dados deste visitante do sistema? Esta ação é irreversível.",
+      async () => {
+        try {
+          await visitorService.deleteVisitor(id);
+          setMessage({ type: 'success', text: 'Visitante removido com sucesso!' });
+          fetchVisitors();
+        } catch (error) {
+          console.error(error);
+          setMessage({ type: 'error', text: 'Erro ao remover visitante.' });
+        }
+      },
+      true // isDanger
+    );
   };
 
   const handleEditVisitor = (visitor: Visitor) => {
@@ -889,7 +998,7 @@ export default function App() {
     }
 
     if (filtered.length === 0) {
-      alert('Nenhum visitante encontrado para os filtros selecionados.');
+      showAlert('Nenhum registro', 'Nenhum visitante encontrado para os filtros selecionados.', 'info');
       return;
     }
 
@@ -1908,7 +2017,16 @@ CREATE POLICY "Gerenciar perfis" ON public.profiles
 -- 5. SCRIPT PARA APAGAR TODOS USUÁRIOS EXCETO MASTER
 -- Execute isto no SQL Editor para limpar usuários:
 -- DELETE FROM auth.users WHERE email != 'adminnovo@gmail.com';
--- (A tabela public.profiles será limpa automaticamente)`}
+-- (A tabela public.profiles será limpa automaticamente)
+
+-- 6. PERMITIR EXCLUSÃO EM CASCATA DE VISITANTES (OPCIONAL)
+-- Execute isto se receber erros de chave estrangeira (foreign key violation) ao tentar remover usuários que cadastraram visitantes:
+ALTER TABLE public.visitors 
+  DROP CONSTRAINT IF EXISTS visitors_created_by_fkey,
+  ADD CONSTRAINT visitors_created_by_fkey 
+    FOREIGN KEY (created_by) 
+    REFERENCES auth.users(id) 
+    ON DELETE CASCADE;`}
                             </pre>
                           </div>
                           <button 
@@ -2441,6 +2559,178 @@ CREATE POLICY "Gerenciar perfis" ON public.profiles
                     <Phone className="w-4 h-4" />
                     Enviar via WhatsApp
                   </a>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Custom Confirm Modal */}
+        <AnimatePresence>
+          {customConfirm && customConfirm.show && (
+            <div key="custom-confirm" className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-white rounded-3xl w-full max-w-md overflow-hidden border border-slate-100 shadow-2xl relative"
+              >
+                <div className="p-6 sm:p-8 space-y-4">
+                  <div className="flex items-start gap-4">
+                    <div className={`p-3 rounded-2xl shrink-0 ${customConfirm.isDanger ? 'bg-rose-50 text-rose-600' : 'bg-blue-50 text-blue-600'}`}>
+                      <AlertCircle className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-slate-800 tracking-tight mb-2">{customConfirm.title}</h3>
+                      <p className="text-sm font-medium text-slate-500 leading-relaxed">{customConfirm.message}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 pt-6">
+                    <button
+                      type="button"
+                      disabled={dialogLoading}
+                      onClick={() => setCustomConfirm(null)}
+                      className="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-400 border-2 border-slate-100 hover:bg-slate-50 rounded-2xl transition-all disabled:opacity-50"
+                    >
+                      {customConfirm.cancelText || 'Cancelar'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={dialogLoading}
+                      onClick={async () => {
+                        setDialogLoading(true);
+                        try {
+                          await customConfirm.onConfirm();
+                          setCustomConfirm(null);
+                        } catch (err: any) {
+                          console.error('Erro no confirm:', err);
+                        } finally {
+                          setDialogLoading(false);
+                        }
+                      }}
+                      className={`flex-1 py-3 text-xs font-black uppercase tracking-widest text-white rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 ${
+                        customConfirm.isDanger 
+                          ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-900/10' 
+                          : 'bg-blue-600 hover:bg-blue-700 shadow-blue-900/10'
+                      } disabled:opacity-50`}
+                    >
+                      {dialogLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (customConfirm.confirmText || 'Confirmar')}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Custom Prompt Modal */}
+        <AnimatePresence>
+          {customPrompt && customPrompt.show && (
+            <div key="custom-prompt" className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-white rounded-3xl w-full max-w-md overflow-hidden border border-slate-100 shadow-2xl relative"
+              >
+                <form 
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    setDialogLoading(true);
+                    try {
+                      await customPrompt.onConfirm(promptInputVal);
+                      setCustomPrompt(null);
+                    } catch (err: any) {
+                      console.error('Erro no prompt:', err);
+                    } finally {
+                      setDialogLoading(false);
+                    }
+                  }}
+                  className="p-6 sm:p-8 space-y-4"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl shrink-0">
+                      <Key className="w-6 h-6" />
+                    </div>
+                    <div className="w-full">
+                      <h3 className="text-xl font-black text-slate-800 tracking-tight mb-2">{customPrompt.title}</h3>
+                      <p className="text-sm font-medium text-slate-500 leading-relaxed">{customPrompt.message}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="pt-2">
+                    <input
+                      required
+                      type={customPrompt.inputType || 'text'}
+                      value={promptInputVal}
+                      onChange={(e) => setPromptInputVal(e.target.value)}
+                      placeholder={customPrompt.placeholder || 'Digite aqui...'}
+                      className="w-full px-4 h-12 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-800 font-bold text-sm tracking-tight focus:bg-white focus:border-blue-600 outline-none transition-all"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-6">
+                    <button
+                      type="button"
+                      disabled={dialogLoading}
+                      onClick={() => setCustomPrompt(null)}
+                      className="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-400 border-2 border-slate-100 hover:bg-slate-50 rounded-2xl transition-all disabled:opacity-50"
+                    >
+                      {customPrompt.cancelText || 'Cancelar'}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={dialogLoading}
+                      className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-blue-900/10 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {dialogLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (customPrompt.confirmText || 'Confirmar')}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Custom Alert Modal */}
+        <AnimatePresence>
+          {customAlert && customAlert.show && (
+            <div key="custom-alert" className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-white rounded-3xl w-full max-w-md overflow-hidden border border-slate-100 shadow-2xl relative"
+              >
+                <div className="p-6 sm:p-8 space-y-4">
+                  <div className="flex items-start gap-4">
+                    <div className={`p-3 rounded-2xl shrink-0 ${
+                      customAlert.type === 'success' ? 'bg-emerald-50 text-emerald-600' :
+                      customAlert.type === 'error' ? 'bg-rose-50 text-rose-600' :
+                      customAlert.type === 'warning' ? 'bg-amber-50 text-amber-600' :
+                      'bg-blue-50 text-blue-600'
+                    }`}>
+                      {customAlert.type === 'success' ? <CheckCircle2 className="w-6 h-6" /> : <AlertCircle className="w-6 h-6" />}
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-slate-800 tracking-tight mb-2">{customAlert.title}</h3>
+                      <p className="text-sm font-medium text-slate-500 leading-relaxed">{customAlert.message}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="pt-6">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (customAlert.onClose) customAlert.onClose();
+                        setCustomAlert(null);
+                      }}
+                      className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-lg transition-all"
+                    >
+                      OK
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             </div>
