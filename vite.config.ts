@@ -12,6 +12,10 @@ export default defineConfig(({mode}) => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
+        devOptions: {
+          enabled: true,
+          type: 'classic',
+        },
         manifest: {
           name: 'Consolidação IPCC.',
           short_name: 'IPCC.',
@@ -19,6 +23,8 @@ export default defineConfig(({mode}) => {
           theme_color: '#2563eb',
           background_color: '#ffffff',
           display: 'standalone',
+          start_url: '/',
+          scope: '/',
           icons: [
             {
               src: '/icon-192.png',
