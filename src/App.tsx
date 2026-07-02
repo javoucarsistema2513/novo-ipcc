@@ -1050,10 +1050,26 @@ WHERE id = '${userId}';`
     setMessage(null);
 
     try {
+      if (!formData.name || !formData.name.trim()) {
+        throw new Error('O nome do visitante é obrigatório.');
+      }
+
+      if (!formData.birthDate || formData.birthDate.trim().length !== 10) {
+        throw new Error('A data de nascimento é obrigatória e deve estar no formato DD/MM/AAAA.');
+      }
+
       let bDate = formData.birthDate;
-      if (bDate && bDate.includes('/') && bDate.length === 10) {
-        const [d, m, y] = bDate.split('/');
-        bDate = `${y}-${m}-${d}`;
+      if (bDate && bDate.includes('/')) {
+        const parts = bDate.split('/');
+        if (parts.length === 3) {
+          const [d, m, y] = parts.map(Number);
+          const currentYear = new Date().getFullYear();
+          if (isNaN(d) || isNaN(m) || isNaN(y) || d < 1 || d > 31 || m < 1 || m > 12 || y < 1900 || y > currentYear) {
+            throw new Error('A data de nascimento informada é inválida. Use o formato DD/MM/AAAA.');
+          }
+        }
+        const [dStr, mStr, yStr] = parts;
+        bDate = `${yStr}-${mStr}-${dStr}`;
       }
 
       const visitorData = {
@@ -1077,9 +1093,10 @@ WHERE id = '${userId}';`
       
       // Scroll to top to see success message
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Submit Error:', error);
-      setMessage({ type: 'error', text: editingId ? 'Erro ao atualizar visitante.' : 'Erro ao cadastrar visitante.' });
+      setMessage({ type: 'error', text: error.message || (editingId ? 'Erro ao atualizar visitante.' : 'Erro ao cadastrar visitante.') });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setIsSubmitting(false);
     }
@@ -1683,7 +1700,7 @@ WHERE id = '${userId}';`
 
                         <form onSubmit={handleFormSubmit} className="space-y-4 sm:space-y-6">
                       <div className="space-y-1 sm:space-y-2">
-                        <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome do Visitante</label>
+                        <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome do Visitante <span className="text-rose-500">*</span></label>
                         <div className="relative">
                           <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4 sm:w-5 sm:h-5" />
                           <input 
@@ -1716,10 +1733,11 @@ WHERE id = '${userId}';`
 
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-6">
                         <div className="space-y-1 sm:space-y-2 col-span-2 sm:col-span-1">
-                          <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Data de Nasc.</label>
+                          <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Data de Nasc. <span className="text-rose-500">*</span></label>
                           <div className="relative">
                             <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4 sm:w-5 sm:h-5" />
                             <input 
+                              required
                               type="text" 
                               value={formData.birthDate}
                               onChange={(e) => {
@@ -2497,6 +2515,7 @@ ALTER TABLE public.visitors
                                   <th className="pb-4 pt-1 font-black">Grupo</th>
                                   <th className="pb-4 pt-1 font-black">Telefone</th>
                                   <th className="pb-4 pt-1 font-black">Líder / Célula</th>
+                                  <th className="pb-4 pt-1 font-black">Cadastrado por</th>
                                   <th className="pb-4 pt-1 font-black">Quem Convidou</th>
                                   <th className="pb-4 pt-1 font-black text-right">Ações</th>
                                 </tr>
@@ -2543,6 +2562,12 @@ ALTER TABLE public.visitors
                                       ) : (
                                         <span className="text-slate-400">Não participa</span>
                                       )}
+                                    </td>
+                                    <td className="py-4 text-slate-500 text-xs">
+                                      <span className="font-semibold text-slate-700">
+                                        {profiles.find(p => p.id === visitor.createdBy)?.display_name || 
+                                         (visitor.createdBy === user?.id ? (user?.user_metadata?.display_name || user?.email || 'Você') : 'Desconhecido')}
+                                      </span>
                                     </td>
                                     <td className="py-4 text-slate-500 text-xs">{visitor.invitedBy || 'Ninguém'}</td>
                                     <td className="py-4 text-right">
